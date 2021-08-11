@@ -1,5 +1,5 @@
 # yaesa
-_**Y**_et _**A**_nother _**E**_nvironment _**Sensor _**A**_ggregator - remote temperature sensors, remote weather station temperature/humidity/rain/wind, local temperature/humidity/pressure and local'ish temperature.
+* _**Y**_et _**A**_nother _**E**_nvironment _**Sensor _**A**_ggregator - remote temperature sensors, remote weather station temperature/humidity/rain/wind, local temperature/humidity/pressure and local'ish temperature.
 <br>
 Using RP2040 - 
 <br>
