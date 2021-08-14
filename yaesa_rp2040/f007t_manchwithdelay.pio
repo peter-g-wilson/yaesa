@@ -1,0 +1,47 @@
+
+.program manchWithDelay
+
+; This F007T sends one 'information data bit’ @ 1024 kHz => 976.56 us per ‘data bit’.
+; The 'information data bits’ are Manchester encoded, with this F007T encoding a 'data bit 1'
+; as a high to low transition and a 'data bit 0' as a low to high transition.
+
+; The F007T transmitter turns on the 433 MHz carrier for a high and turns it off for a low.
+; At the 433 MHz RF AM receiver, the detected carrier turns the data output pin high so
+; that the carrier on and then off is seen as a 1 followed by 0 at the RF receiver output pin.
+; Note RF receivers have automatic gain control - when a good carrier is detected then the is gain lowered.
+; However with no good carrier detected the gain is increased creating lots of spurious pulses on the output pin.
+
+; The   sequence of three 'data bits' 1,1,1 is seen at the output of the receiver as 1,0,1,0,1,0
+; and a sequence of three 'data bits' 1,0,1 is seen at the output of the receiver as 1,0,0,1,1,0
+; At the ouput of the RF receiver the shortest repeating sequence is 976.56 us 
+; with the shortest pulse about 488 us (halfWait) and half of that is 244 us (quarterWait).
+
+; Method
+; - wait for an edge (say 1->0) then, after a quarterWait, test again for the changed-to-value (so 0).
+; - if it changed (0->1) then its too soon and not valid so go back and wait for an edge again
+;   however, if still the same (0) then emit the appropriate ‘data bit’ value (in this case ‘data bit 1')
+;     and test again after a halfWait.
+; - after the halfWait if it’s changed (gone to 1) from the changed-to-value (which was 0) 
+;     then the same ‘data bit’ value will be repeating,
+; - otherwise it didn't change (stayed at 0) so the next ‘data bit’ value will be the opposite 
+;     (in this case it will change to ‘data bit 0').
+
+; With 125 MHz system clock and divisor of 2543.0F => 1 state machine cycle time = 20.34 us
+; Using a quarterWait of 10 cycles => 203.4 us and a halfWait of 24 cycles => 488.16 us.
+; From the pin WAIT to the time of the test to switch the 'data bit' value is 36 => 732.24 us 
+
+start_of_1:
+    wait 0 pin 0 [9]     ; 10 = quarterWait
+    jmp  pin start_of_1  ; 11  (error - too soon, try again)
+    in   x, 1 [23]       ; 35 halfWait (emit x where X is pre-loaded with 1)
+    jmp pin start_of_1   ; 36 => 48-36=12 (test if data bit is to change)
+.wrap_target
+start_of_0:
+    wait 1 pin 0 [9]     ; 10 = quarterWait
+    jmp pin emit_0       ; 11 (error - too soon, try again)
+    jmp start_of_0
+
+emit_0:    
+    in null, 1 [23]      ; 35 halfWait (emit 0)
+    jmp pin start_of_1   ; 36 => 48-36=12 (test if data bit is to change)
+.wrap

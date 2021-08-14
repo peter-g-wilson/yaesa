@@ -1,0 +1,48 @@
+
+#ifndef PROJ_BOARD_H
+
+#ifdef PIMORONI_TINY2040
+
+#define LED_THREE_COLOUR 1
+#define LED_GREEN_PIN   TINY2040_LED_G_PIN
+#define LED_BLUE_PIN    TINY2040_LED_B_PIN
+#define LED_RED_PIN     TINY2040_LED_R_PIN
+
+#else
+
+#define LED_THREE_COLOUR 0
+#define LED_GREEN_PIN   LED_DEFAULT_PIN
+#define LED_BLUE_PIN    LED_DEFAULT_PIN
+#define LED_RED_PIN     LED_DEFAULT_PIN
+
+#endif
+
+#define LED_DEFAULT_PIN PICO_DEFAULT_LED_PIN
+
+#define LED_DEFAULT_ON  (1 ^ PICO_DEFAULT_LED_PIN_INVERTED)
+#define LED_DEFAULT_OFF (0 ^ PICO_DEFAULT_LED_PIN_INVERTED)
+
+#define F007T_PIO_HW  pio0
+#define F007T_SM_HW   2
+#define F007T_GPIO_RX 26
+
+#define WH1080_PIO_HW  pio0
+#define WH1080_SM_HW   1
+#define WH1080_GPIO_RX 27
+
+#define SPI_HW      spi0
+#define SPI_RX_PIN  0
+#define SPI_CS_PIN  1
+#define SPI_CLK_PIN 2
+#define SPI_TX_PIN  3
+
+#define UART_HW     uart1
+#define UART_TX_PIN 4
+#define UART_RX_PIN 5
+
+#define DS18B20_PIO_HW pio1
+#define DS18B20_SM_1W  1
+#define DS18B20_PIN    6
+
+#define PROJ_BOARD_H
+#endif

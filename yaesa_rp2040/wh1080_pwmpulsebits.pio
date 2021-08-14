@@ -1,0 +1,42 @@
+
+.program PWMpulseBits
+
+; Roughly a data ‘1’ is 0.5 ms pulse, ‘0’ is 1.5 ms and the gap between pulses is 1.0 ms.
+; Method: 
+; - count duration of a pulse, if long enough for a ‘1’ but not a ‘0’ or if long enough for a ‘0’.
+; - after ‘1’ or ‘0’ then count the gap duration, if gap long enough emit X which will be ‘1’ or ‘0’.
+
+; With 125 MHz system clock and a divisor of 625.0F => 1 state machine cycle time of 5 us
+; => short_timer 5*(2+1)=15 us; loop*16 = 240 us
+; => long_timer  5*(3+1)=20 us; loop*30 = 600 us
+; => gap_timer   5*(1+3)=20 us; loop*30 = 600 us
+
+.wrap_target
+start_of_hi:
+    wait 1 pin 0
+already_hi:
+    set y, 15
+short_timer:
+    jmp y-- test_short_hi
+    set y, 31
+long_timer:
+    jmp y-- test_long_hi
+    set x, 0
+    wait 0 pin 0
+    
+gap_start:    
+    set y, 28
+gap_timer:
+    jmp pin already_hi
+    jmp y-- gap_timer [2]
+    in x, 1    
+    jmp start_of_hi
+
+test_short_hi:
+    jmp pin short_timer [1]
+.wrap
+
+test_long_hi:
+    jmp pin long_timer [2]
+    set x, 1
+    jmp gap_start
