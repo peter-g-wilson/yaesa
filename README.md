@@ -1,13 +1,14 @@
-# yaesa
+# YAESA
 **Y**et **A**nother **E**nvironment **S**ensor **A**ggregator<br>
+
 Remote wireless temperature sensors and remote wireless weather station with temperature/humidity/rain/wind sensors. Local sensor with temperature/humidity/pressure and another local'ish sensor with a temperature sensor at the end of a long wire.
 
-**Using a RP2040 and PIOs -** 
+**Using RP2040 and PIOs -** 
 <br>
 * Two PIO state machines to detect bit pulse streams from the raw incoming data provided by two RF AM receivers, both with OOK modulation but one Manchester encoded and the other PWM encoded. Receiving data from
   - five remote F007T temperature sensors transmiting at 433 MHz
-  - one remote WH1080 weather station transmiting temperature, humidity, rain, wind data and date/time at 866 MHz.
-* One PIO state machine to provide a simple very blocking implementation of the one-wire protocol to a parasiticaly powered DS18B20 on a long'ish wire.
+  - one remote WH1080 weather station transmiting temperature, humidity, rain, wind data and date/time at 868 MHz.
+* One PIO state machine to provide a simple very blocking implementation of the one-wire protocol to a parasiticaly powered DS18B20 on a long'ish wire (only had 8.5 m available).
 * Also a local BME280 with temperature, humidity and pressure currently using a version of the Raspberry PI (Trading) Ltd.'s BME280 SPI example code.
 
 ### Why do it?
@@ -29,22 +30,23 @@ Fortunately its fairly easy to create replacement ones using cheap 8 bit micros,
 <br>
 Then my youngest son inherited a Fine Offset WH1080 weather station from his grandfather ...
 
-## Overview
+# Overview
 ![overview](https://github.com/peter-g-wilson/yaesa/blob/main/docs/overview.png)
 
-#### Remote Sensors
-###### F007T
+### Remote Sensors
+#### **F007T**
   - The particular F007T temperature sensors being used transmit 433 MHz OOK Manchester encoded messages. Example sensors are Oregon Scientific WMR86, Ambient Weather F007 and Froggit FT007. No doubt all are manufactured in China and just re-badged. Be aware that the encoding method may change between different versions of sensors.
   - For this F007T, the RF receiver can be any one that does 433 MHz OOK e.g. RF Solutions AMRX9-433P or RadioControlli RCRX-434-L The message protocol is a bit limiting for the sophisticated receivers like HopeRF RFM65.
   - There are also decodes for SDR. e.g. ambient_weather.c at https://github.com/merbanan/rtl_433
   - Its been done on Arduino’s - Rob Ward (and the people he credits), https://github.com/robwlakes/ArduinoWeatherOS using a decoding delay algorithm. Ron Lewis, https://eclecticmusingsofachaoticmind.wordpress.com/2015/01/21/home-automationtemperature- sensors/ for the checksum algorithm?
 
-###### WH1080
-  - The WH1080 weather station being used transmits 868 MHz OOK PWM encoded messages. Again probably re-badged and the encoding method may change between different versions of sensors. Simple RF OOK receivers that are low voltage are harder to come by - RadioControlli do the RCRX-868-L.
+#### **WH1080**
+  - The WH1080 weather station being used transmits 868 MHz OOK PWM encoded messages. Again probably re-badged and the encoding method may change between different versions of sensors.
+  - Simple RF OOK receivers that are low voltage are harder to come by - RadioControlli do the RCRX-868-L.
   - Again there are SDR. decodes given at https://github.com/merbanan/rtl_433 by Benjamin Larsson et al.
-  - The sensors on this weather station have outdoor temperature and humidity, rain and wind speed and direction. It also reports datetime information a couple of times over a day - received from Mainflingen near Frankfurt in Germany.
+  - The sensors on this weather station have outdoor temperature and humidity, rain and wind speed and direction. It also reports date/time information a couple of times over a day - received from Mainflingen near Frankfurt in Germany.
 
-Both RF AM receivers with automatic gain control generate sperious data but the PIO algorithms are not very defensive.<br>
+Both RF AM receivers with automatic gain control generate spurious data between real messages but the PIO algorithms are not very defensive.<br>
 The WH1080 and F007T both have checksums for message integrity checking but these aren’t strong enough for all types of noise.<br>
 Both WH1080 and F007T repeat the message more than once in some transmissions and so if the checksum passes then the message can be compared to the previous one. If two consecutive messages pass the checksum and the messages are identical then the message could be accepted as good.<br>
 The WH1080 PWM OOK with 10 byte message and 8 bit CRC appears to be particularly susceptible with a lot of ‘1’s in the noise.
@@ -54,13 +56,13 @@ The WH1080 PWM OOK with 10 byte message and 8 bit CRC appears to be particularly
   - has the CPU core 0 main entry point that calls the WH1080 and F007T timer and PIO initialisations and also has the core 1 entry point to handle the BME280 connected by SPI, the DS18B20 one-wire protocol and the 2nd UART to output the data that's been received.
   - on core 0 the "main" loop does nothing. Its the timer callbacks that empty the PIO FIFOs and that "parse" the bit streams looking for recognisable messages, adding them to the message queues.
   - on core 1 the liesurely "main" loop periodically polls the meassage queues being populated by core 0 and formats them.
-  - core 1 also periodically polls the BME280 and DS18B20 sensors.
+  - core 1 also liesurely polls the BME280 and DS18B20 sensors.
   - core 1 sends all the decoded data out on the UART. 
 * _**f007t_manchwithdelay.pio**_ in 9 instructions and
 * _**wh1080_pwmpulsebits.pio**_ in 16 instructions
   - have state machine programs feeding their FIFOs with data bits for the F007T and WH1080 decoders respectively.
   - they provide limited detection for valid data bits being received.
-  - the FIFOs are configured as 32 bits wide and would block on messages that aren't multiples of 32 bits. However the RF AM receivers with automatic gain control generate noise pulses between "good" messages. These sperious bits push the real bits through the FIFOs fairly quickly.  
+  - the FIFOs are configured as 32 bits wide and would block on messages that aren't multiples of 32 bits. However the RF AM receivers with automatic gain control generate noise pulses between "good" messages. These spurious bits push the real bits through the FIFOs fairly quickly.  
 * _**wh1080_decode_bits.c**_ and
 * _**f007t_decode_bits.c**_
   - repeating timer callbacks on core 0 empty the PIO FIFOs and stores the resulting bit stream to bit queues i.e. extending the queue depth from the FIFO limitation. 
@@ -74,9 +76,9 @@ The WH1080 PWM OOK with 10 byte message and 8 bit CRC appears to be particularly
   - the reset and bit read sequences are entered by injecting JMP instructions. These sequences both finish at the blocking PULL at the start of the bit write 
 * _**ds18b20_1w.c**_
   - reads the DS18B20 using mostly PIO control of the one-wire protocol's time critical parts but with the none critical sequences using injected instructions.
-  - it tests for the data line erroneously shorted low and requires the device presence pulse to be seen.
-  - the CPU code detemines that the PIO's state machine is idle by checking the TX FIFO stalled status.
-  - default 12 bit conversion is used and, if the device had reported no power, then the data line is driven high to provide some "parasitic" power during the conversion time.
+  - tests for the data line erroneously shorted low and requires the device presence pulse to be seen.
+  - CPU code detemines that the PIO's state machine is idle by checking the PIO's TX FIFO stalled status.
+  - default 12 bit conversion is used and, if the device had reported no power, then the data line is driven high to provide some "parasitic" power during the conversion time (pin drive strength at default) 
   - it is assumed that there is only one device on the bus (because that's all there currently is!). 
 * _**bme280_spi.c**_
   - reads the BME280 over SPI. Apart from an awful cludge, the code is largely the published example SPI program unmodified
@@ -90,11 +92,8 @@ The WH1080 PWM OOK with 10 byte message and 8 bit CRC appears to be particularly
   - has the specifics for the particular gpio/PIO/SM/SPI/UART's used on the board
 * other _**\*.h**_ files
   - each _**\*.c**_ file except _**yaesa_rp2040.c**_ has a corresponding _**.h**_ file that provides declarations for the functions and data that they define and share. 
-#### To Do
-Using 4 wire SPI is a bit generous for the BME280 so will probably switch to I2C
-<br>
 
-## Remote Sensor Processing Performance Measurement 
+### Remote Sensor Processing Performance Measurement 
 - **What to measure**
     - Rate of bits per second through the PIO state machine and the proportion of bits that have
 the value ‘1’. This is a rough proportion as it will vary with message content.
@@ -131,7 +130,7 @@ The amount of ones for the WH1080 is very high and will inevitably fool the chec
 Some of the F007T transmitters (TX ID’s 3, 4 and 5) are further away and some are also reporting
 low battery.
 
-- **Results for WH1080 868 OOK PWM**
+- **WH1080 868 OOK PWM**
 <pre>
 |          |                  |  Ideal |   Avg  |   Max  |   Min  |
 |:--------:|:----------------:|:------:|:------:|:------:|:------:|
@@ -144,7 +143,7 @@ low battery.
 |          | Delta sec        |  96.00 | 121.19 | 480.10 |  95.40 |
 </pre>
 
-- **Results for F007T 433 OOK Manchester**
+- **F007T 433 OOK Manchester**
 <pre>
 |                 |                  |  Ideal |   Avg  |   Max   |   Min  |
 |:---------------:|:----------------:|:------:|:------:|:-------:|:------:|
@@ -168,3 +167,7 @@ low battery.
 |                 | % identical pass |  33.33 |  41.31 |   49.10 |   0.00 |
 |                 | Delta sec        |  60.00 |  94.88 | 4287.80 |  66.70 |
 </pre>
+### To Do
+Using 4 wire SPI is a bit generous for the BME280 so will probably switch to I2C
+<br>
+
