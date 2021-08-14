@@ -75,7 +75,7 @@ The WH1080 PWM OOK with 10 byte message and 8 bit CRC appears to be particularly
   - the state machine idles on a blocking PULL for the bit write sequence.
   - the reset and bit read sequences are entered by injecting JMP instructions. These sequences both finish at the blocking PULL at the start of the bit write 
 * _**ds18b20_1w.c**_
-  - reads the DS18B20 using mostly PIO control of the one-wire protocol's time critical parts but with the none critical sequences using injected instructions.
+  - reads the DS18B20 using mostly PIO control of the one-wire protocol's time critical parts but with the noncritical sequences using injected instructions.
   - tests for the data line erroneously shorted low and requires the device presence pulse to be seen.
   - CPU code detemines that the PIO's state machine is idle by checking the PIO's TX FIFO stalled status.
   - default 12 bit conversion is used and, if the device had reported no power, then the data line is driven high to provide some "parasitic" power during the conversion time (pin drive strength at default) 
