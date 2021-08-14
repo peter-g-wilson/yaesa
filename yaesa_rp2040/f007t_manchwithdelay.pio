@@ -26,6 +26,14 @@
 ; - otherwise it didn't change (stayed at 0) so the next ‘data bit’ value will be the opposite 
 ;     (in this case it will change to ‘data bit 0').
 
+; The algorithm is not good for an ideal signal with no noise. If the input is idle low
+; then, at program start up, a ‘1’ data bit is involuntarily emitted. When the header sequence of ‘1’s
+; arrives, the algorithm emits ‘0’s instead of ‘1’s. This happens until the first bit reversal occurs.
+; After that, the emitted data bits are correct. Fortunately the F007T repeats the message 3 times
+; in a transmission and so the following two messages are reported correctly.
+; Rearranging the algorithm to avoid this has defeated me so far - partly because, for a signal with noise,
+; the algorithm appears to work sufficiently well.
+
 ; With 125 MHz system clock and divisor of 2543.0F => 1 state machine cycle time = 20.34 us
 ; Using a quarterWait of 10 cycles => 203.4 us and a halfWait of 24 cycles => 488.16 us.
 ; From the pin WAIT to the time of the test to switch the 'data bit' value is 36 => 732.24 us 
