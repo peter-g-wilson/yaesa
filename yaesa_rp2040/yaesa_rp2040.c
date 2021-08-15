@@ -4,6 +4,7 @@
 #include "hardware/timer.h"
 #include "hardware/sync.h"
 #include "pico/multicore.h"
+#include "pico/binary_info.h"
 
 #include "wh1080_decode_bits.h"
 #include "f007t_decode_bits.h"
@@ -85,15 +86,18 @@ int main()
     gpio_init(LED_DEFAULT_PIN);
     gpio_set_dir(LED_DEFAULT_PIN, GPIO_OUT);
     gpio_put(LED_DEFAULT_PIN, LED_DEFAULT_OFF);
+    bi_decl(bi_1pin_with_name(LED_DEFAULT_PIN, LED_DEFAULT_CONFIG));
 
 #if LED_THREE_COLOUR
     gpio_init(LED_RED_PIN);
     gpio_set_dir(LED_RED_PIN, GPIO_OUT);
     gpio_put(LED_RED_PIN, LED_DEFAULT_OFF);
+    bi_decl(bi_1pin_with_name(LED_RED_PIN, LED_RED_CONFIG));
 
     gpio_init(LED_BLUE_PIN);
     gpio_set_dir(LED_BLUE_PIN, GPIO_OUT);
     gpio_put(LED_BLUE_PIN, LED_DEFAULT_OFF);
+    bi_decl(bi_1pin_with_name(LED_BLUE_PIN, LED_BLU_CONFIG));
 #endif
 
     gpio_put(LED_DEFAULT_PIN, LED_DEFAULT_ON);

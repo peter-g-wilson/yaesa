@@ -2,6 +2,7 @@
 #include "pico/stdlib.h"
 #include "hardware/uart.h"
 #include "hardware/irq.h"
+#include "pico/binary_info.h"
 
 #include "proj_board.h"
 #include "uart_io.h"
@@ -50,6 +51,8 @@ void uartIO_init( uartIO_rxCallBack_t *rxCallBack, uint8_t *ipBuf, size_t ipMaxL
     int UART_IRQ = UART_HW == uart0 ? UART0_IRQ : UART1_IRQ;
     irq_set_exclusive_handler(UART_IRQ, uartIO_on_rx);
     irq_set_enabled(UART_IRQ, true);
+
+    bi_decl(bi_2pins_with_func(UART_RX_PIN, UART_TX_PIN, GPIO_FUNC_UART));
 }
 void uartIO_rxEnable(bool isEnabled) {
     rxEnabled = isEnabled;

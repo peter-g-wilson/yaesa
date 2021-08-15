@@ -4,6 +4,7 @@
 #include "hardware/pio.h"
 #include "hardware/timer.h"
 #include "hardware/sync.h"
+#include "pico/binary_info.h"
 
 #include "queues_for_msgs_and_bits.h"
 #include "output_format.h"
@@ -186,6 +187,8 @@ void DS18B20_init(void)
 
     pio_sm_init(       DS18B20_PIO_HW, DS18B20_SM_1W, offset_wr_stall, &cfg_prog_1w);
     pio_sm_set_enabled(DS18B20_PIO_HW, DS18B20_SM_1W, true);
+
+    bi_decl(bi_1pin_with_name(DS18B20_PIN, DS18B20_CONFIG));
 }
 
 outBuff_t DS18B20msg;

@@ -3,6 +3,7 @@
 #include "hardware/pio.h"
 #include "hardware/timer.h"
 #include "hardware/sync.h"
+#include "pico/binary_info.h"
 
 #include "wh1080_pwmpulsebits.pio.h"
 #include "queues_for_msgs_and_bits.h"
@@ -250,6 +251,7 @@ void WH1080_init( uint32_t parseRptTime, uint32_t fifoRptTime ) {
                                  (repeating_timer_t *)&msgQ->mQueRptTmr );
     add_repeating_timer_ms( fifoRptTime, poll_FIFO_callback, (void *) &WH1080bitQ, 
                                  (repeating_timer_t *)&bitQ->bQueRptTmr );
+    bi_decl(bi_1pin_with_name(WH1080_GPIO_RX, WH1080_CONFIG));
 }
 void WH1080_uninit( void ) {
     volatile msgQue_t * msgQ = &WH1080msgQ;

@@ -4,6 +4,7 @@
 #include "hardware/timer.h"
 #include "hardware/irq.h"
 #include "hardware/sync.h"
+#include "pico/binary_info.h"
 
 #include "f007t_manchwithdelay.pio.h"
 #include "queues_for_msgs_and_bits.h"
@@ -204,6 +205,7 @@ void F007T_init( uint32_t parseRptTime, uint32_t fifoRptTime ) {
                                  (repeating_timer_t *)&msgQ->mQueRptTmr );
     add_repeating_timer_ms( fifoRptTime, poll_FIFO_callback, (void *) &F007TbitQ, 
                                  (repeating_timer_t *)&bitQ->bQueRptTmr );
+    bi_decl(bi_1pin_with_name(F007T_GPIO_RX, F007T_CONFIG));
 }
 void F007T_uninit( void ) {
     volatile msgQue_t * msgQ = &F007TmsgQ;
