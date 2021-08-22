@@ -1,7 +1,15 @@
 # YAESA
 **Y**et **A**nother **E**nvironment **S**ensor **A**ggregator<br>
 
-Remote wireless temperature sensors and remote wireless weather station with temperature/humidity/rain/wind sensors. Local sensor with temperature/humidity/pressure and another local'ish sensor with a temperature sensor at the end of a long wire.
+Remote wireless temperature sensors and remote wireless weather station with temperature/humidity/rain/wind sensors.<br>
+Local sensor with temperature/humidity/pressure and another local'ish sensor with a temperature sensor at the end of a long wire.
+
+**Updates 2021/08/22 -**
+<br>
+- Builds for Pimoroni's Tiny 2040 boards (and hopefuly still for pico)
+- Having gone to that expense (for less pins !), added some PWM LED control (_**led_control.c**_ and _**h**_)
+- To evaluate the PWM LEDs at runtime, added override with control received from the uart.
+- Added non-blocking stdin to do just the same as the uart receiver (renaming source files _**uart_io.c**_ and _**h**_ to _**serial_io**_)
 
 **Using RP2040 and PIOs -** 
 <br>
@@ -38,7 +46,7 @@ Then my youngest son inherited a Fine Offset WH1080 weather station from his gra
   - The particular F007T temperature sensors being used transmit 433 MHz OOK Manchester encoded messages. Example sensors are Oregon Scientific WMR86, Ambient Weather F007 and Froggit FT007. No doubt all are manufactured in China and just re-badged. Be aware that the encoding method may change between different versions of sensors.
   - For this F007T, the RF receiver can be any one that does 433 MHz OOK e.g. RF Solutions AMRX9-433P or RadioControlli RCRX-434-L The message protocol is a bit limiting for the sophisticated receivers like HopeRF RFM65.
   - There are also decodes for SDR. e.g. ambient_weather.c at https://github.com/merbanan/rtl_433
-  - Its been done on Arduino’s - Rob Ward (and the people he credits), https://github.com/robwlakes/ArduinoWeatherOS using a decoding delay algorithm. Ron Lewis, https://eclecticmusingsofachaoticmind.wordpress.com/2015/01/21/home-automationtemperature- sensors/ for the checksum algorithm?
+  - Its been done on Arduino’s - Rob Ward (and the people he credits), https://github.com/robwlakes/ArduinoWeatherOS using a decoding delay algorithm. Ron Lewis, https://eclecticmusingsofachaoticmind.wordpress.com/2015/01/21/home-automationtemperature-sensors/ for the checksum algorithm?
 
 #### **WH1080**
   - The WH1080 weather station being used transmits 868 MHz OOK PWM encoded messages. Again probably re-badged and the encoding method may change between different versions of sensors.
@@ -84,12 +92,17 @@ The WH1080 PWM OOK with 10 byte message and 8 bit CRC appears to be particularly
   - reads the BME280 over SPI. Apart from an awful cludge, the code is largely the published example SPI program unmodified
 * _**queues_for_msgs_and_bits.c**_
   - has support routines for message and bit queues. Statistics are collected to measure the performance of the queues and FIFOs and the incoming rate of data bits. 
-* _**uart_io.c**_
-  - has support routines for the 2nd UART where the message data is sent out over RS232
+* _**serial_io.c**_
+  - has support routines for the 2nd UART where the message data is sent out over RS232 and data input can be received
+  - provide for non-blocking input from stdin
+* _**led_control.c**_
+  - PWM for the Tiny 2040's three LEDs. The runtime overrides allow
+    - the affect of PWM values to be evaluated and 
+    - allow current settings table to be cycled through easily.
 * _**output_format.c**_
   - defines common format information and prints debug and statistics to std output
 * _**proj_board.h**_
-  - has the specifics for the particular gpio/PIO/SM/SPI/UART's used on the board
+  - has the specifics for the particular GPIO/PIO/SM/SPI/UART's used on the board
 * other _**\*.h**_ files
   - each _**\*.c**_ file except _**yaesa_rp2040.c**_ has a corresponding _**.h**_ file that provides declarations for the functions and data that they define and share. 
 
@@ -125,7 +138,7 @@ not two.
 - **Results**
 
 The code was instrumented to log the header and message statistics over 30 minute sample periods and the bit rates were recorded every minute. The delta times between valid messages from each individual transmitter were logged as they occurred. The statistics were recorded over multiple 24 hour periods.<br>
-The high water marks are not reported in the following tables as the repeating timer callbacks are currently set to quite a high frequency. The maximum number of unread words found unread in FIFO was 2, the bit queue word max was 4 and the message queue was 2.<br>
+The high water marks are not reported in the following tables as the repeating timer callbacks are currently set to quite a high frequency. The maximum number of words found unread in FIFO was 2, the bit queue word max was 4 and the message queue was 2.<br>
 The amount of ones for the WH1080 is very high and will inevitably fool the checksum.<br>
 Some of the F007T transmitters (TX ID’s 3, 4 and 5) are further away and some are also reporting
 low battery.
