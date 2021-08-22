@@ -26,21 +26,16 @@ serialRxCallBack_t stdioioRx;
 
 bool serioRx_tmrCallBack(struct repeating_timer *t) {
     static size_t ipIdx = 0;
-    if (stdioioRx.serioRxEnbl) {
-        while (true) {
-            int ch = getchar_timeout_us(0);
-            if (ch < 0) break;
-            if (ch > 127) continue;
-            stdioioRx.serioRxBuf[ipIdx++] = ch;
-            if ((ch == 10) || (ipIdx >= stdioioRx.serioRxMax)) {
-                int (*fp) (uint8_t, uint8_t*, int) = (void *) stdioioRx.serioRxFn;
-                int rdyNxt = fp( stdioioRx.serioRxId, stdioioRx.serioRxBuf, ipIdx );
-                ipIdx = 0;
-                if (!rdyNxt) {
-                    stdioioRx.serioRxEnbl = false;
-                    break;
-                }                    
-            }
+    while (stdioioRx.serioRxEnbl) {
+        int ch = getchar_timeout_us(0);
+        if (ch < 0) break;
+        if (ch > 127) continue;
+        stdioioRx.serioRxBuf[ipIdx++] = ch;
+        if ((ch == 10) || (ipIdx >= stdioioRx.serioRxMax)) {
+            int (*fp) (uint8_t, uint8_t*, int) = (void *) stdioioRx.serioRxFn;
+            int rdyNxt = fp( stdioioRx.serioRxId, stdioioRx.serioRxBuf, ipIdx );
+            ipIdx = 0;
+            if (!rdyNxt) stdioioRx.serioRxEnbl = false;
         }
     }
     return true;
@@ -60,18 +55,16 @@ void stdioRx_enable(bool isEnabled) {
 
 void uartIO_rxCallBack() {
     static size_t ipIdx = 0;
-    while (uartioRx.serioRxEnbl && uart_is_readable(UART_HW)) {
-        if (ipIdx < uartioRx.serioRxMax) {
-            uint8_t ch = uart_getc(UART_HW);
-            if (ch < 128) {
-                uartioRx.serioRxBuf[ipIdx++] = ch;
-                if ((ch == 10) || (ipIdx >= uartioRx.serioRxMax)) {
-                    int (*fp) (uint8_t, uint8_t*, int) = (void *) uartioRx.serioRxFn;
-                    int rdyNxt = fp( uartioRx.serioRxId, uartioRx.serioRxBuf, ipIdx );
-                    if (!rdyNxt) uartioRx.serioRxEnbl = false;                    
-                    ipIdx = 0;
-                }
-            }
+    while (uartioRx.serioRxEnbl) {
+        if (!uart_is_readable(UART_HW)) break;
+        uint8_t ch = uart_getc(UART_HW);
+        if (ch > 127) continue;
+        uartioRx.serioRxBuf[ipIdx++] = ch;
+        if ((ch == 10) || (ipIdx >= uartioRx.serioRxMax)) {
+            int (*fp) (uint8_t, uint8_t*, int) = (void *) uartioRx.serioRxFn;
+            int rdyNxt = fp( uartioRx.serioRxId, uartioRx.serioRxBuf, ipIdx );
+            ipIdx = 0;
+            if (!rdyNxt) uartioRx.serioRxEnbl = false;                    
         }
     }
     if (!uartioRx.serioRxEnbl) uart_set_irq_enables(UART_HW, false, false);
