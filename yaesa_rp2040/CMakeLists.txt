@@ -31,11 +31,12 @@ pico_set_program_version(yaesa_rp2040 "0.1")
 target_sources(yaesa_rp2040 PRIVATE
         queues_for_msgs_and_bits.c
         output_format.c
-        uart_io.c
+        serial_io.c
         f007t_decode_bits.c
         wh1080_decode_bits.c
         bme280_spi.c
         ds18b20_1w.c
+        led_control.c
         )
 
 pico_enable_stdio_uart(yaesa_rp2040 0)
@@ -52,6 +53,7 @@ target_link_libraries(yaesa_rp2040
         hardware_spi
         hardware_pio
         hardware_timer
+        hardware_pwm
         )
 
 pico_add_extra_outputs(yaesa_rp2040)

@@ -63,7 +63,7 @@
 #include "bme280_spi.h"
 #include "queues_for_msgs_and_bits.h"
 #include "output_format.h"
-#include "uart_io.h"
+#include "serial_io.h"
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 #define READ_BIT 0x80
@@ -203,8 +203,32 @@ void read_compensation_parameters() {
     dig_H6 = (int8_t) buffer[7];
 }
 
-#endif
+uint BME280_errCnt = 0;
 
+bool BME280_checkId( void )
+{
+    static bool checkedOk = false;
+    // See if SPI is working - interrograte the device for its I2C ID number, should be 0x60
+    uint8_t id;
+    read_registers(0xD0, &id, 1);
+    if (id != 0x60) {
+        checkedOk = false;
+        BME280_errCnt++;
+        printf("Chip ID error, got 0x%02x\n", id);
+    } else {
+        if (!checkedOk) {
+            checkedOk = true;
+
+            read_compensation_parameters();
+    
+            write_register(0xF2, 0x1); // Humidity oversampling register - going for x1
+            write_register(0xF4, 0x27);// Set rest of oversampling modes and run mode to normal
+        }
+    }
+    return checkedOk;
+}
+
+#endif
 
 void BME280_init()
 {
@@ -230,15 +254,6 @@ void BME280_init()
     // Make the CS pin available to picotool
     bi_decl(bi_1pin_with_name(PICO_DEFAULT_SPI_CSN_PIN, "SPI CS"));
 
-    // See if SPI is working - interrograte the device for its I2C ID number, should be 0x60
-    uint8_t id;
-    read_registers(0xD0, &id, 1);
-    printf("Chip ID is 0x%x\n", id);
-
-    read_compensation_parameters();
-
-    write_register(0xF2, 0x1); // Humidity oversampling register - going for x1
-    write_register(0xF4, 0x27);// Set rest of oversampling modes and run mode to normal
 #endif
 }
 
@@ -250,11 +265,12 @@ outBuff_t BME280msg;
 #define BME280_PREDASHPAD  (OFRMT_HEXCODS_LEN - BME280_MAXMSGBYTS * 2)
 #define BME280_POSTDASHPAD (OFRMT_DECODES_LEN - BME280_MAXMSGFRMT)
 
-void BME280_read(uint32_t tStamp)
+int BME280_read(uint32_t tStamp)
 {
 #if !defined(spi_default) || !defined(PICO_DEFAULT_SPI_SCK_PIN) || !defined(PICO_DEFAULT_SPI_TX_PIN) || !defined(PICO_DEFAULT_SPI_RX_PIN) || !defined(PICO_DEFAULT_SPI_CSN_PIN)
 #warning spi/bme280_spi example requires a board with SPI pins
     puts("Default SPI pins were not defined");
+    return -1;
 #else
     int32_t humidity, pressure, temperature;
     uint8_t buffer[BME280_MAXMSGBYTS];
@@ -262,45 +278,51 @@ void BME280_read(uint32_t tStamp)
     float  msgDlta = (float)((uint32_t)(tStamp - prevStamp))*0.001F;
     prevStamp = tStamp;
 
-    read_registers(0xF7, buffer, 8);
-    pressure = ((uint32_t) buffer[0] << 12) | ((uint32_t) buffer[1] << 4) | (buffer[2] >> 4);
-    temperature = ((uint32_t) buffer[3] << 12) | ((uint32_t) buffer[4] << 4) | (buffer[5] >> 4);
-    humidity = (uint32_t) buffer[6] << 8 | buffer[7];
+    bool read_res = BME280_checkId();
 
-    // These are the raw numbers from the chip, so we need to run through the
-    // compensations to get human understandable numbers
-    float press_hPa = compensate_pressure(pressure)/100.0F;
-    float temp_degC = compensate_temp(temperature)/100.0F;
-    int   humid_pct = compensate_humidity(humidity)/1024;
-    if (press_hPa < 0.0F   ) press_hPa = 0.0F;
-    if (press_hPa > 9999.0F) press_hPa = 9999.0F;
-    if (temp_degC < -99.0F)  temp_degC = -99.0F;
-    if (temp_degC > 999.0F)  temp_degC = 999.0F;
-    if (humid_pct < 0  )     humid_pct = 0;
-    if (humid_pct > 999)     humid_pct = 999;
-
-    uint msgId = 0x000F;
-    int msgLen = snprintf( &BME280msg[0], OFRMT_SNDR_TSTAMP_LEN+1, "%0*X-%0*X-",
-                                       OFRMT_SNDR_ID_LEN, msgId, OFRMT_TSTAMP_LEN, tStamp);
-    for (uint i = 0; i < BME280_MAXMSGBYTS; i++) {
-        msgLen += snprintf( &BME280msg[OFRMT_SNDR_TSTAMP_LEN+(i*2)], 2+1, "%02X", buffer[i] );
+    if (read_res) {
+        read_registers(0xF7, buffer, 8);
+        pressure = ((uint32_t) buffer[0] << 12) | ((uint32_t) buffer[1] << 4) | (buffer[2] >> 4);
+        temperature = ((uint32_t) buffer[3] << 12) | ((uint32_t) buffer[4] << 4) | (buffer[5] >> 4);
+        humidity = (uint32_t) buffer[6] << 8 | buffer[7];
+    
+        // These are the raw numbers from the chip, so we need to run through the
+        // compensations to get human understandable numbers
+        float press_hPa = compensate_pressure(pressure)/100.0F;
+        float temp_degC = compensate_temp(temperature)/100.0F;
+        int   humid_pct = compensate_humidity(humidity)/1024;
+        if (press_hPa < 0.0F   ) press_hPa = 0.0F;
+        if (press_hPa > 9999.0F) press_hPa = 9999.0F;
+        if (temp_degC < -99.0F)  temp_degC = -99.0F;
+        if (temp_degC > 999.0F)  temp_degC = 999.0F;
+        if (humid_pct < 0  )     humid_pct = 0;
+        if (humid_pct > 999)     humid_pct = 999;
+    
+        uint msgId = BME280_SNDR_ID;
+        int msgLen = snprintf( &BME280msg[0], OFRMT_SNDR_TSTAMP_LEN+1, "%0*X-%0*X-",
+                                           OFRMT_SNDR_ID_LEN, msgId, OFRMT_TSTAMP_LEN, tStamp);
+        for (uint i = 0; i < BME280_MAXMSGBYTS; i++) {
+            msgLen += snprintf( &BME280msg[OFRMT_SNDR_TSTAMP_LEN+(i*2)], 2+1, "%02X", buffer[i] );
+        }
+        msgLen += snprintf( &BME280msg[BME280_HEXCODES_LEN], OFRMT_TOTAL_LEN - BME280_HEXCODES_LEN + 1,
+                   "%*.*s-i:%01X,b:0,T:%05.1f,H:%03d,P:%06.1f%*.*s",
+                   BME280_PREDASHPAD, BME280_PREDASHPAD, dash_padding,
+                   msgId, temp_degC, humid_pct, press_hPa,
+                   BME280_POSTDASHPAD, BME280_POSTDASHPAD, dash_padding);
+    
+        msgLen += 3;
+        OFRMT_PRINT_PATHETIC_EXCUSE(msgId,msgLen);
+    
+        BME280msg[msgLen-3] = 13;
+        BME280msg[msgLen-2] = 10;
+        BME280msg[msgLen-1] = 0;
+    
+        uartIO_buffSend(&BME280msg[0],msgLen);
+        printf("%08X %*.*s Msg %1X %07.1f s Err %d\n",
+               tStamp,msgLen-3,msgLen-3,(uint8_t *)&BME280msg[0],
+               msgId,msgDlta,BME280_errCnt);
     }
-    msgLen += snprintf( &BME280msg[BME280_HEXCODES_LEN], OFRMT_TOTAL_LEN - BME280_HEXCODES_LEN + 1,
-               "%*.*s-i:%01X,b:0,T:%05.1f,H:%03d,P:%06.1f%*.*s",
-               BME280_PREDASHPAD, BME280_PREDASHPAD, dash_padding,
-               msgId, temp_degC, humid_pct, press_hPa,
-               BME280_POSTDASHPAD, BME280_POSTDASHPAD, dash_padding);
-
-    msgLen += 3;
-    OFRMT_PRINT_PATHETIC_EXCUSE(msgId,msgLen);
-
-    BME280msg[msgLen-3] = 13;
-    BME280msg[msgLen-2] = 10;
-    BME280msg[msgLen-1] = 0;
-
-    uartIO_buffSend(&BME280msg[0],msgLen);
-    printf("%08X %*.*s Msg %1X %07.1f s\n",tStamp,msgLen-3,msgLen-3,(uint8_t *)&BME280msg[0],
-           msgId,msgDlta);
-
+    if (read_res) return BME280_SNDR_ID;
+            else return -1;
 #endif
 }

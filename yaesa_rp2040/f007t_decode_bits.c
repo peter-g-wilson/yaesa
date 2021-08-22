@@ -10,7 +10,7 @@
 #include "queues_for_msgs_and_bits.h"
 #include "f007t_decode_bits.h"
 #include "output_format.h"
-#include "uart_io.h"
+#include "serial_io.h"
 #include "string.h"
 #include "proj_board.h"
 
@@ -124,7 +124,7 @@ bool parseF007Tbits_callback(struct repeating_timer *t) {
 #define F007T_PREDASHPAD  (OFRMT_HEXCODS_LEN - F007T_MAXMSGBYTS * 2)
 #define F007T_POSTDASHPAD (OFRMT_DECODES_LEN - F007T_MAXMSGFRMT)
 
-void decode_F007T_msg( volatile msgQue_t * msgQ, outBuff_t outBuff, outArgs_t * outArgsP ) {
+int decode_F007T_msg( volatile msgQue_t * msgQ, outBuff_t outBuff, outArgs_t * outArgsP ) {
     volatile msgRec_t * msgRecs = msgQ->mQueRecStats;
     volatile msgRec_t * msgRecP = &msgQ->mQueRecStats[msgQ->mQueMsgTail];
     volatile uint8_t  * msgP    = &msgQ->mQueRecByts[msgQ->mQueMsgTail*F007T_MAXMSGBYTS];
@@ -159,6 +159,7 @@ void decode_F007T_msg( volatile msgQue_t * msgQ, outBuff_t outBuff, outArgs_t * 
     outBuff[msgLen-1] = 0;
 
     output_copy_args( msgLen, sndrIdx + 1, msgQ, msgRecP, outArgsP);
+    return sndrIdx;
 }
 
 /*-----------------------------------------------------------------*/
@@ -168,12 +169,13 @@ bool F007T_tryMsgBuf( void ) {
     return tryMsgBuf( &F007TmsgQ );
 }
 
-void F007T_doMsgBuf( void ) {
+int F007T_doMsgBuf( void ) {
     outArgs_t outArgs;
-    decode_F007T_msg( &F007TmsgQ, F007Tmsgcods, &outArgs );
+    int sndrIdx = decode_F007T_msg( &F007TmsgQ, F007Tmsgcods, &outArgs );
     freeLastMsg( &F007TmsgQ );
     uartIO_buffSend(&F007Tmsgcods[0],outArgs.oArgMsgLen);
     print_msg( F007Tmsgcods, &outArgs );
+    return sndrIdx;
 }
 
 /*-----------------------------------------------------------------*/

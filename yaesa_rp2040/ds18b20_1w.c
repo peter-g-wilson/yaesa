@@ -8,7 +8,7 @@
 
 #include "queues_for_msgs_and_bits.h"
 #include "output_format.h"
-#include "uart_io.h"
+#include "serial_io.h"
 #include "proj_board.h"
 #include "ds18b20_1w.h"
 #include "ds18b20_1w.pio.h"
@@ -71,8 +71,8 @@ void read_bytes(uint8_t *buf, uint8_t len)
 #define DS18B20_ERR_SHORTTOGND 1
 #define DS18B20_ERR_NOPRESENCE 2
 #define DS18B20_ERR_CRC        3
-uint errCnt  = 0;
-uint lastErr = DS18B20_ERR_NONE;
+uint DS18B20_errCnt  = 0;
+uint DS18B20_lastErr = DS18B20_ERR_NONE;
 
 #define RST_PIN_MASK 0x01000000
 
@@ -94,8 +94,8 @@ bool reset(void)
         sleep_us(2);
     }
     if (!res) {
-        errCnt++;
-        lastErr = DS18B20_ERR_SHORTTOGND;
+        DS18B20_errCnt++;
+        DS18B20_lastErr = DS18B20_ERR_SHORTTOGND;
     } else {
         // prime sm from floating input to output driven high and the x and y loop counts -1
         pio_sm_exec_wait_blocking(DS18B20_PIO_HW, DS18B20_SM_1W, pio_encode_set(pio_pins,    1));
@@ -113,8 +113,8 @@ bool reset(void)
         // the pin should have been low during the presence pulse that was driven by the DS18B20
         res = (pinVal & RST_PIN_MASK) == 0;
         if (!res) {
-            errCnt++;
-            lastErr = DS18B20_ERR_NOPRESENCE;
+            DS18B20_errCnt++;
+            DS18B20_lastErr = DS18B20_ERR_NOPRESENCE;
         }
     }
     return res;
@@ -161,8 +161,8 @@ bool ds18b20_read_raw(uint8_t *buff)
         uint8_t crc = crc8_calc(buff, DS18B20_MAXMSGBYTS);
         res = crc == 0;
         if (!res) {
-            errCnt++;
-            lastErr = DS18B20_ERR_CRC;
+            DS18B20_errCnt++;
+            DS18B20_lastErr = DS18B20_ERR_CRC;
         }
     }
     return res;
@@ -198,10 +198,11 @@ outBuff_t DS18B20msg;
 #define DS18B20_PREDASHPAD  (OFRMT_HEXCODS_LEN - DS18B20_MAXMSGBYTS * 2)
 #define DS18B20_POSTDASHPAD (OFRMT_DECODES_LEN - DS18B20_MAXMSGFRMT)
 
-bool DS18B20_read(uint32_t tStamp)
+int DS18B20_read(uint32_t tStamp)
 {
     static uint32_t prevStamp = 0;
     uint8_t rx_buff[DS18B20_MAXMSGBYTS];
+    uint msgId = 0x000E;
     bool read_res = ds18b20_read_raw(&rx_buff[0]);
     if (read_res) {
         int16_t temperature = (int16_t)((rx_buff[1] << 8) | rx_buff[0]);
@@ -212,7 +213,6 @@ bool DS18B20_read(uint32_t tStamp)
         if (temp_degC < -99.0F) temp_degC = -99.0F;
         if (temp_degC > 999.0F) temp_degC = 999.0F;
 
-        uint msgId = 0x000E;
         int msgLen = snprintf(&DS18B20msg[0], OFRMT_SNDR_TSTAMP_LEN+1, "%0*X-%0*X-", 
                                              OFRMT_SNDR_ID_LEN, msgId, OFRMT_TSTAMP_LEN, tStamp);
         for (uint i = 0; i < DS18B20_MAXMSGBYTS; i++) {
@@ -233,7 +233,8 @@ bool DS18B20_read(uint32_t tStamp)
         uartIO_buffSend(&DS18B20msg[0], msgLen);
         printf("%08X %*.*s Msg %1X %07.1f s Err %d Last %d\n", 
                tStamp, msgLen - 3, msgLen - 3, (uint8_t *)&DS18B20msg[0],
-               msgId, msgDlta, errCnt, lastErr);
+               msgId, msgDlta, DS18B20_errCnt, DS18B20_lastErr);
     }
-    return read_res;
+    if (read_res) return DS18B20_SNDR_ID;
+            else return -1;
 }
