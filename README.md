@@ -99,7 +99,7 @@ The WH1080 PWM OOK with 10 byte message and 8 bit CRC appears to be particularly
   - provide for non-blocking input from stdin using polling
   - the default alarm pool was created on core 0 for the F007T and WH1080 repeatng timers. The repeating timer that is polling stdin is currently also using the default alarm pool. Its repeating timer is started on core 1 but the interrupt will run on core 0. However the UART rx interrupt runs on core 1. The consequence of this is that
     - the common routines defined in _**yaesa_rp2040.c**_ (and the subsequent routines in _**led_control.c**_) can potentially be called from interrupts on differnt cores.
-    - the same functions could therefore be executing simulainiously and create havoc for any global data that they access.
+    - the same functions could therefore be executing simulaneously and create havoc for any global data that they access.
     - not a problem for the current use but something to bear in mind when mixing related functionality using multiple cores and default pool repeating timers / other interrupts. 
     - possibly change to use a dedicated TIMER_IRQ_x and a direct timer alarm or create an additional alarm pool on core 1 and use pool/core specific alarms. 
 * _**led_control.c**_
