@@ -10,6 +10,7 @@ Local sensor with temperature/humidity/pressure and another local'ish sensor wit
 - Having gone to that expense (for less pins !), added some PWM LED control (_**led_control.c**_ and _**h**_)
 - To evaluate the PWM LEDs at runtime, added override with control received from the uart.
 - Added non-blocking stdin to do just the same as the uart receiver (renaming source files _**uart_io.c**_ and _**h**_ to _**serial_io**_)
+- Also added a minimum sanity check before every read of the BME280 sensor data to check the device 'id' is valid and so the sensor data is also possibly readable.
 
 **Using RP2040 and PIOs -** 
 <br>
@@ -90,15 +91,21 @@ The WH1080 PWM OOK with 10 byte message and 8 bit CRC appears to be particularly
   - it is assumed that there is only one device on the bus (because that's all there currently is!). 
 * _**bme280_spi.c**_
   - reads the BME280 over SPI. Apart from an awful cludge, the code is largely the published example SPI program unmodified
+  - unlike the DS18B20, the BME280 provides no checksum for messages. The 'id' register is read as a minimum sanity check before the sensor data is read. If it's valid and this is the first time or was previously not valid then the calibration data is read and the oversampling rate and run mode set.
 * _**queues_for_msgs_and_bits.c**_
   - has support routines for message and bit queues. Statistics are collected to measure the performance of the queues and FIFOs and the incoming rate of data bits. 
 * _**serial_io.c**_
   - has support routines for the 2nd UART where the message data is sent out over RS232 and data input can be received
-  - provide for non-blocking input from stdin
+  - provide for non-blocking input from stdin using polling
+  - the default alarm pool was created on core 0 for the F007T and WH1080 repeatng timers. The repeating timer that is polling stdin is currently also using the default alarm pool. Its repeating timer is started on core 1 but the interrupt will run on core 0. However the UART rx interrupt runs on core 1. The consequence of this is that
+    - the common routines defined in _**yaesa_rp2040.c**_ (and the subsequent routines in _**led_control.c**_) can potentially be called from interrupts on differnt cores.
+    - the same functions could therefore be executing simulainiously and create havoc for any global data that they access.
+    - not a problem for the current use but something to bear in mind when mixing related functionality using multiple cores and default pool repeating timers / other interrupts. 
+    - possibly change to use a dedicated TIMER_IRQ_x and a direct timer alarm or create an additional alarm pool on core 1 and use pool/core specific alarms. 
 * _**led_control.c**_
   - PWM for the Tiny 2040's three LEDs. The runtime overrides allow
     - the affect of PWM values to be evaluated and 
-    - allow current settings table to be cycled through easily.
+    - allow currently coded settings table to be cycled through easily.
 * _**output_format.c**_
   - defines common format information and prints debug and statistics to std output
 * _**proj_board.h**_
