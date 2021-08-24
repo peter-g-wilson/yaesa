@@ -254,6 +254,8 @@ void BME280_init()
     // Make the CS pin available to picotool
     bi_decl(bi_1pin_with_name(PICO_DEFAULT_SPI_CSN_PIN, "SPI CS"));
 
+    BME280_checkId();
+    
 #endif
 }
 
