@@ -32,7 +32,6 @@ typedef struct bitQueStruct {
     PIO        bQue_pio_id;
     const uint bQue_sm_id;
     const uint bQue_pin_rx;
-    repeating_timer_t bQueRptTmr;
     uint     bQueWrdTail;
     uint     bQueWrdHead;
     uint     bQueWrdCntr;
@@ -79,7 +78,6 @@ typedef struct msgQueStruct {
     uint8_t  * mQueRecByts;
     msgRec_t * mQueRecStats;
     uint8_t  * mQuePrvMsgByts;
-    repeating_timer_t mQueRptTmr;
     spin_lock_t       * mQueQLock;
     volatile bitQue_t * mQueBitQueP;
 } msgQue_t;
@@ -93,7 +91,7 @@ extern bool tryMsgBuf( volatile msgQue_t * msgQ );
 extern void putNxtWrd( volatile bitQue_t * bitQ, uint32_t nxtWrd );
 extern uint32_t getNxtWrd( volatile bitQue_t * bitQ );
 extern bool tryWrdBuf( volatile bitQue_t * bitQ );
-extern bool poll_FIFO_callback(struct repeating_timer *t);
+extern void poll_FIFO_callback( void * bitQp);
 extern bool tryBitBuf( volatile bitQue_t * bitQ );
 extern bool getNxtBit_isSet( volatile bitQue_t * bitQ );
 

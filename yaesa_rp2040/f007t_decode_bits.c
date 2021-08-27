@@ -13,6 +13,7 @@
 #include "serial_io.h"
 #include "string.h"
 #include "proj_board.h"
+#include "sched_ms.h"
 
 #define MAX_F007T_BUFWRDS 32
 volatile uint32_t F007TrxWrdsBuf[MAX_F007T_BUFWRDS];
@@ -49,7 +50,7 @@ volatile msgQue_t F007TmsgQ = {
 };
 
 /*-----------------------------------------------------------------*/
-bool parseF007Tbits_callback(struct repeating_timer *t) {
+void parseF007Tbits_callback(void * msgQp) {
     const uint8_t lsfrMask[(F007T_MAXMSGBYTS-1)*8] = {
         0x3e, 0x1f, 0x97, 0xd3, 0xf1, 0xe0, 0x70, 0x38,
         0x1c, 0x0e, 0x07, 0x9b, 0xd5, 0xf2, 0x79, 0xa4,  
@@ -69,7 +70,7 @@ bool parseF007Tbits_callback(struct repeating_timer *t) {
     static uint8_t  chkSumCalc;
     static volatile uint8_t  * msgP;
     static volatile msgRec_t * msgRecP;
-    volatile        msgQue_t * msgQ = (volatile msgQue_t *)t->user_data;
+    volatile        msgQue_t * msgQ = (volatile msgQue_t *)msgQp;
     volatile        bitQue_t * bitQ = msgQ->mQueBitQueP;
     while (tryBitBuf( bitQ )) {
         bool nxtBitIsSet = getNxtBit_isSet( bitQ );
@@ -115,7 +116,6 @@ bool parseF007Tbits_callback(struct repeating_timer *t) {
             }
         }           
     }
-    return true;
 }
 
 /*-----------------------------------------------------------------*/
@@ -203,16 +203,12 @@ void F007T_init( uint32_t parseRptTime, uint32_t fifoRptTime ) {
 
     msgQ->mQueQLock = spin_lock_instance( next_striped_spin_lock_num() );
     
-    add_repeating_timer_ms( parseRptTime, parseF007Tbits_callback, (void *) &F007TmsgQ, 
-                                 (repeating_timer_t *)&msgQ->mQueRptTmr );
-    add_repeating_timer_ms( fifoRptTime, poll_FIFO_callback, (void *) &F007TbitQ, 
-                                 (repeating_timer_t *)&bitQ->bQueRptTmr );
+    sched_init_slot(SCHED_CORE0_SLOT2, parseRptTime, parseF007Tbits_callback, (void *)&F007TmsgQ);
+    sched_init_slot(SCHED_CORE0_SLOT0, fifoRptTime , poll_FIFO_callback,      (void *)&F007TbitQ);
     bi_decl(bi_1pin_with_name(F007T_GPIO_RX, F007T_CONFIG));
 }
 void F007T_uninit( void ) {
     volatile msgQue_t * msgQ = &F007TmsgQ;
     volatile bitQue_t * bitQ = msgQ->mQueBitQueP;
-    bool cancelled = cancel_repeating_timer( (repeating_timer_t *)&bitQ->bQueRptTmr );
-    cancelled      = cancel_repeating_timer( (repeating_timer_t *)&msgQ->mQueRptTmr );
     pio_sm_set_enabled( bitQ->bQue_pio_id, bitQ->bQue_sm_id, false );
 }
