@@ -7,6 +7,7 @@ Local sensor with temperature/humidity/pressure and another local'ish sensor wit
 **Updates 2021/08/27 -**
 <br>
 - replaced repeating_timer calls with simple'ish 1 ms tick scheduler (_**sched.c**_ and _**h**_) that triggers callbacks running on each core
+- the Tiny2040 board has 8 MB flash but by default the linker allocates only 2 MB. As an experiment, if environment variable PICO_BOARD is set for the tiny2040, then a custom linker script is added to set it to 8. I'm not sure if this is the correct way but in any case the current total code size including SDK is less than 50 KB so perhaps even 2 MB is generous. I guess the larger flash sizes better suit applications that create a file system e.g. python environment
 
 **Updates 2021/08/22 -**
 <br>
