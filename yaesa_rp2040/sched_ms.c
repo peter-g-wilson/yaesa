@@ -28,7 +28,8 @@ typedef struct sched_core_struct {
     const uint8_t schd_max_slots;
     sched_slot_t * const schd_slots;
     uint32_t schd_maxdur;
-    uint32_t schd_ovrrun;
+    uint32_t schd_maxjittr;
+    uint     schd_ovrrun;
 } sched_core_t;
 
 sched_slot_t sched_core0_slots[SCHED_MAX_CORE0_SLOTS];
@@ -63,12 +64,13 @@ void sched_ms_callback( void ) {
     uint core_num = get_core_num();
     uint alarm_num = sched_cores[core_num]->schd_alarm_num;
     hw_clear_bits(&timer_hw->intr, 1u << alarm_num);
-    uint32_t tStrtCore = timer_hw->timerawl;
-    uint32_t tSchdCore = timer_hw->alarm[alarm_num];
+    uint32_t tCoreStrt = timer_hw->timerawl;
+    uint32_t tCoreSchd = timer_hw->alarm[alarm_num];
+    uint32_t tCoreJittr = tCoreStrt - tCoreSchd;
     sched_slot_t * schd_slotp = sched_cores[core_num]->schd_slots;
     for (uint i = 0; i < sched_cores[core_num]->schd_max_slots; i++) {
-        if ((tStrtCore - schd_slotp[i].schdSlot_tprev) > schd_slotp[i].schdSlot_periodUs) {
-            schd_slotp[i].schdSlot_tprev = tSchdCore;
+        if ((tCoreStrt - schd_slotp[i].schdSlot_tprev) > schd_slotp[i].schdSlot_periodUs) {
+            schd_slotp[i].schdSlot_tprev = tCoreSchd;
             uint32_t tStrtSlot = timer_hw->timerawl;
             if ((void *)schd_slotp[i].schdSlot_callback != (void *) 0) {
                 void (*fp) (void *) = (void *) schd_slotp[i].schdSlot_callback ;
@@ -78,7 +80,7 @@ void sched_ms_callback( void ) {
             if (tDurSlot > schd_slotp[i].schdSlot_maxDur) schd_slotp[i].schdSlot_maxDur = tDurSlot;
         }
     }
-    uint32_t tNext   = tSchdCore + SCHED_MS_TICK;
+    uint32_t tNext   = tCoreSchd + SCHED_MS_TICK;
     uint32_t tTstPrd = tNext - timer_hw->timerawl;
     // test if just about to or have already gone past the timer count for next interrupt 
     if ((tTstPrd < (uint32_t)50u) || (tTstPrd > SCHED_MS_TICK)) {
@@ -86,8 +88,9 @@ void sched_ms_callback( void ) {
         tNext = timer_hw->timerawl + (uint32_t)15u;
     }
     timer_hw->alarm[alarm_num] = tNext;
-    uint32_t tDurCore = timer_hw->timerawl - tStrtCore;
-    if (tDurCore > sched_cores[core_num]->schd_maxdur) sched_cores[core_num]->schd_maxdur = tDurCore;
+    uint32_t tCoreDurtn = timer_hw->timerawl - tCoreStrt;
+    if (tCoreDurtn > sched_cores[core_num]->schd_maxdur)   sched_cores[core_num]->schd_maxdur   = tCoreDurtn;
+    if (tCoreJittr > sched_cores[core_num]->schd_maxjittr) sched_cores[core_num]->schd_maxjittr = tCoreJittr;
 }
 void sched_init_core( void ) {
     uint core_num = get_core_num();
@@ -102,15 +105,17 @@ void sched_init_core( void ) {
     timer_hw->alarm[sched_cores[core_num]->schd_alarm_num] = tNow + SCHED_MS_TICK;
 }
 void sched_printStats( void ) {
-    printf("sched_ms overrun cnts and max durations (us)- "
-           "'core 0': %d %d, slots %d %d %d %d, 'core 1': %d %d, slots %d \n",
+    printf("sched_ms o: overrun cnts, j: max jitter in us, d: max durations in us - "
+           "'core 0'- o:%d j:%d d:%d, slots d: %d,%d,%d,%d, 'core 1'- o:%d j:%d d:%d, slots d:%d \n",
         sched_cores[0]->schd_ovrrun,
+        sched_cores[0]->schd_maxjittr,
         sched_cores[0]->schd_maxdur,
            sched_cores[0]->schd_slots[0].schdSlot_maxDur,
            sched_cores[0]->schd_slots[1].schdSlot_maxDur,
            sched_cores[0]->schd_slots[2].schdSlot_maxDur,
            sched_cores[0]->schd_slots[3].schdSlot_maxDur,
         sched_cores[1]->schd_ovrrun,
+        sched_cores[1]->schd_maxjittr,
         sched_cores[1]->schd_maxdur,
            sched_cores[1]->schd_slots[0].schdSlot_maxDur);
 }
