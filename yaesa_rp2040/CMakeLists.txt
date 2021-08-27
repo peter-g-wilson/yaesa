@@ -37,6 +37,7 @@ target_sources(yaesa_rp2040 PRIVATE
         bme280_spi.c
         ds18b20_1w.c
         led_control.c
+        sched_ms.c
         )
 
 pico_enable_stdio_uart(yaesa_rp2040 0)

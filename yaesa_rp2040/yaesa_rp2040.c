@@ -15,6 +15,7 @@
 #include "bme280_spi.h"
 #include "ds18b20_1w.h"
 #include "led_control.h"
+#include "sched_ms.h"
 
 enum ledctl_colours_t sndrToColour( int sndr )
 {
@@ -70,14 +71,15 @@ void core1_entry() {
 
     puts("Hello, other world!");
 
-    uartIO_init(UARTRXID, (uartIO_rxCallBack_t *)procSerialRx,uartioRxBuf,sizeof(uartioRxBuf));
+    uartIO_init(UARTRXID, procSerialRx,uartioRxBuf,sizeof(uartioRxBuf));
     uartIO_rxEnable( true );
 
-    stdioRx_init(STDIORXID, (uartIO_rxCallBack_t *)procSerialRx,stdioRxBuf,sizeof(stdioRxBuf));
+    stdioRx_init(STDIORXID, procSerialRx,stdioRxBuf,sizeof(stdioRxBuf));
     stdioRx_enable( true );
 
     BME280_init();
     DS18B20_init();
+    sched_init_core();
 
 #define PACING_DELAY_MS    1000
 #define BME280_PERIOD_MS  60000
@@ -127,7 +129,12 @@ void core1_entry() {
             uartIO_rxEnable(true);
         }
         if (stdioRxLen > 0) {
-            printf("%*.*s",stdioRxLen,stdioRxLen,&stdioRxBuf[0]);
+            if (*stdioRxBuf == '0') {   
+                sched_printStats();
+            }
+            else {
+                printf("%*.*s",stdioRxLen,stdioRxLen,&stdioRxBuf[0]);
+            }
             stdioRxLen = 0;
             stdioRx_enable(true);
         }
@@ -144,6 +151,7 @@ int main() {
 
     WH1080_init( 200, 100 );
     F007T_init(  100,  50 );
+    sched_init_core();
 
     ledctl_put( ledctl_colAllOff );
     multicore_launch_core1(core1_entry);

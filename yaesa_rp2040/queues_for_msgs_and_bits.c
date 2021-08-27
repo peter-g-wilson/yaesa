@@ -58,15 +58,14 @@ uint32_t getNxtWrd( volatile bitQue_t * bitQ ) {
 bool tryWrdBuf( volatile bitQue_t * bitQ ) {
     return bitQ->bQueWrdCntr > 0; 
 }
-bool poll_FIFO_callback(struct repeating_timer *t) {
-    volatile bitQue_t * bitQ = (volatile bitQue_t *)t->user_data;
+void poll_FIFO_callback(void * bitQp) {
+    volatile bitQue_t * bitQ = (volatile bitQue_t *)bitQp;
     uint fifoCntr = 0;
     while (!pio_sm_is_rx_fifo_empty(bitQ->bQue_pio_id, bitQ->bQue_sm_id)) {
         putNxtWrd( bitQ, pio_sm_get(bitQ->bQue_pio_id, bitQ->bQue_sm_id) );
         fifoCntr++;
     }
     if (fifoCntr > bitQ->bQueFiFoHiWater) bitQ->bQueFiFoHiWater = fifoCntr;
-    return true;
 }
 bool tryBitBuf( volatile bitQue_t * bitQ ) {
     if (bitQ->bQueBitsCntr == 0) {
