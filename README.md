@@ -101,7 +101,7 @@ The WH1080 PWM OOK with 10 byte message and 8 bit CRC appears to be particularly
   - has support routines for message and bit queues. Statistics are collected to measure the performance of the queues and FIFOs and the incoming rate of data bits. 
 * _**serial_io.c**_
   - has support routines for the 2nd UART where the message data is sent out over RS232 and data input can be received
-  - provide for non-blocking input from stdin using scheduled cvallbacks and polling
+  - provide for non-blocking input from stdin using scheduled callbacks and polling
   - the scheduled callbacks that poll stdin will interrupt on core 1, the same as the UART rx interrupt.
 * _**led_control.c**_
   - PWM for the Tiny 2040's three LEDs. The runtime overrides allow
