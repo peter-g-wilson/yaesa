@@ -4,6 +4,11 @@
 Remote wireless temperature sensors and remote wireless weather station with temperature/humidity/rain/wind sensors.<br>
 Local sensor with temperature/humidity/pressure and another local'ish sensor with a temperature sensor at the end of a long wire.
 
+**Updates 2021/08/27 -**
+<br>
+- replaced repeating_timer calls with simple'ish 1 ms tick scheduler (_**sched.c**_ and _**h**_) that triggers callbacks running on each core
+- the Tiny2040 board has 8 MB flash but by default the linker allocates only 2 MB. As an experiment, if environment variable PICO_BOARD is set for the tiny2040, then a custom linker script is added to set it to 8. I'm not sure if this is the correct way but in any case the current total code size including SDK is less than 50 KB so perhaps even 2 MB is generous. I guess the larger flash sizes better suit applications that create a file system e.g. python environment
+
 **Updates 2021/08/22 -**
 <br>
 - Builds for Pimoroni's Tiny 2040 boards (and hopefuly still for pico)
@@ -62,8 +67,8 @@ The WH1080 PWM OOK with 10 byte message and 8 bit CRC appears to be particularly
 
 # Code
 * _**yaesa_rp2040.c**_  
-  - has the CPU core 0 main entry point that calls the WH1080 and F007T timer and PIO initialisations and also has the core 1 entry point to handle the BME280 connected by SPI, the DS18B20 one-wire protocol and the 2nd UART to output the data that's been received.
-  - on core 0 the "main" loop does nothing. Its the timer callbacks that empty the PIO FIFOs and that "parse" the bit streams looking for recognisable messages, adding them to the message queues.
+  - has the CPU core 0 main entry point that calls the WH1080 and F007T scheduler and PIO initialisations and also has the core 1 entry point to handle the BME280 connected by SPI, the DS18B20 one-wire protocol and the 2nd UART to output the data that's been received.
+  - on core 0 the "main" loop does nothing. Its the scheduler callbacks that empty the PIO FIFOs and that "parse" the bit streams looking for recognisable messages, adding them to the message queues.
   - on core 1 the liesurely "main" loop periodically polls the meassage queues being populated by core 0 and formats them.
   - core 1 also liesurely polls the BME280 and DS18B20 sensors.
   - core 1 sends all the decoded data out on the UART. 
@@ -74,11 +79,11 @@ The WH1080 PWM OOK with 10 byte message and 8 bit CRC appears to be particularly
   - the FIFOs are configured as 32 bits wide and would block on messages that aren't multiples of 32 bits. However the RF AM receivers with automatic gain control generate noise pulses between "good" messages. These spurious bits push the real bits through the FIFOs fairly quickly.  
 * _**wh1080_decode_bits.c**_ and
 * _**f007t_decode_bits.c**_
-  - repeating timer callbacks on core 0 empty the PIO FIFOs and stores the resulting bit stream to bit queues i.e. extending the queue depth from the FIFO limitation. 
-  - repeating timer callbacks on core 0 read from the bit queues, "parse" the data bits looking for their respective messages and queue the results to message queues.
-  - on core 0 the timer callbacks for the message and bit queues both interact with the bit queues. However they are on the same CPU and currently run at the same priority so the integrity of the bit queue is naturally protected.
+  - scheduled callbacks on core 0 empty the PIO FIFOs and stores the resulting bit stream to bit queues i.e. extending the queue depth from the FIFO limitation. 
+  - scheduled callbacks on core 0 read from the bit queues, "parse" the data bits looking for their respective messages and queue the results to message queues.
+  - on core 0 the scheduled callbacks for the message and bit queues both interact with the bit queues. However they are on the same CPU and currently run at the same priority so the integrity of the bit queue is naturally protected.
   - Functions called from the main loop on core 1 decodes the messages ready for their transmision out through the UART. 
-  - The functions called on core 1 main loop and the message queue timer callbacks on core 0 both access the message queue so spin locks are used to ensure integrity of the queue.
+  - The functions called on core 1 main loop and the message queue scheduler callbacks on core 0 both access the message queue so spin locks are used to ensure integrity of the queue.
 * _**ds10b20_1w.pio**_ in 15 instructions
   - has the state machine that implements the one-wire sequences for reset and bit read / write.
   - the state machine idles on a blocking PULL for the bit write sequence.
@@ -96,16 +101,16 @@ The WH1080 PWM OOK with 10 byte message and 8 bit CRC appears to be particularly
   - has support routines for message and bit queues. Statistics are collected to measure the performance of the queues and FIFOs and the incoming rate of data bits. 
 * _**serial_io.c**_
   - has support routines for the 2nd UART where the message data is sent out over RS232 and data input can be received
-  - provide for non-blocking input from stdin using polling
-  - the default alarm pool was created on core 0 for the F007T and WH1080 repeatng timers. The repeating timer that is polling stdin is currently also using the default alarm pool. Its repeating timer is started on core 1 but the interrupt will run on core 0. However the UART rx interrupt runs on core 1. The consequence of this is that
-    - the common routines defined in _**yaesa_rp2040.c**_ (and the subsequent routines in _**led_control.c**_) can potentially be called from interrupts on differnt cores.
-    - the same functions could therefore be executing simulaneously and create havoc for any global data that they access.
-    - not a problem for the current use but something to bear in mind when mixing related functionality using multiple cores and default pool repeating timers / other interrupts. 
-    - possibly change to use a dedicated TIMER_IRQ_x and a direct timer alarm or create an additional alarm pool on core 1 and use pool/core specific alarms. 
+  - provide for non-blocking input from stdin using scheduled callbacks and polling
+  - the scheduled callbacks that poll stdin will interrupt on core 1, the same as the UART rx interrupt.
 * _**led_control.c**_
   - PWM for the Tiny 2040's three LEDs. The runtime overrides allow
     - the affect of PWM values to be evaluated and 
     - allow currently coded settings table to be cycled through easily.
+* _**sched_ms.c**_
+  - provides a simple scheduler using a 1 ms tick
+  - uses ALARMs and IRQs 0 and 1 - the default alram pool on 3 still exists and used by stdio over USB
+  - the 1 ms tick callback performance is monitored for overrun, max duration, tardiness, and max durations of the scheduled callbacks that it triggers 
 * _**output_format.c**_
   - defines common format information and prints debug and statistics to std output
 * _**proj_board.h**_
@@ -145,7 +150,7 @@ not two.
 - **Results**
 
 The code was instrumented to log the header and message statistics over 30 minute sample periods and the bit rates were recorded every minute. The delta times between valid messages from each individual transmitter were logged as they occurred. The statistics were recorded over multiple 24 hour periods.<br>
-The high water marks are not reported in the following tables as the repeating timer callbacks are currently set to quite a high frequency. The maximum number of words found unread in FIFO was 2, the bit queue word max was 4 and the message queue was 2.<br>
+The high water marks are not reported in the following tables as the scheduler callbacks are currently set to quite a high frequency. The maximum number of words found unread in FIFO was 2, the bit queue word max was 4 and the message queue was 2.<br>
 The amount of ones for the WH1080 is very high and will inevitably fool the checksum.<br>
 Some of the F007T transmitters (TX ID’s 3, 4 and 5) are further away and some are also reporting
 low battery.

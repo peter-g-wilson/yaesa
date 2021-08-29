@@ -12,6 +12,7 @@
 #include "serial_io.h"
 #include "string.h"
 #include "proj_board.h"
+#include "sched_ms.h"
 
 /*-----------------------------------------------------------------*/
 #define MAX_WH1080_BUFWRDS 32
@@ -48,7 +49,7 @@ volatile msgQue_t WH1080msgQ = {
 };
 
 /*-----------------------------------------------------------------*/
-bool parseWH1080bits_callback(struct repeating_timer *t) {
+void parseWH1080bits_callback(void * msgQp) {
     static const uint8_t crctab[256] = {
         0x00, 0x31, 0x62, 0x53, 0xC4, 0xF5, 0xA6, 0x97, 0xB9, 0x88, 0xDB, 0xEA, 0x7D, 0x4C, 0x1F, 0x2E,
         0x43, 0x72, 0x21, 0x10, 0x87, 0xB6, 0xE5, 0xD4, 0xFA, 0xCB, 0x98, 0xA9, 0x3E, 0x0F, 0x5C, 0x6D,
@@ -78,7 +79,7 @@ bool parseWH1080bits_callback(struct repeating_timer *t) {
     static uint8_t    chkSumCalc;
     static volatile uint8_t  * msgP;
     static volatile msgRec_t * msgRecP;
-    volatile        msgQue_t * msgQ = (volatile msgQue_t *)t->user_data;
+    volatile        msgQue_t * msgQ = (volatile msgQue_t *)msgQp;
     volatile        bitQue_t * bitQ = msgQ->mQueBitQueP;
     while (tryBitBuf( bitQ )) {
         bool nxtBitIsSet = getNxtBit_isSet( bitQ );
@@ -121,7 +122,6 @@ bool parseWH1080bits_callback(struct repeating_timer *t) {
             }
         }           
     }
-    return true;
 }
 
 /*-----------------------------------------------------------------*/
@@ -228,7 +228,6 @@ int WH1080_doMsgBuf( void ) {
     print_msg( WH1080msgcods, &outArgs );
     return sndrIdx;
 }
-
 /*-----------------------------------------------------------------*/
 void WH1080_init( uint32_t parseRptTime, uint32_t fifoRptTime ) {
     volatile msgQue_t * msgQ = &WH1080msgQ;
@@ -253,16 +252,13 @@ void WH1080_init( uint32_t parseRptTime, uint32_t fifoRptTime ) {
 
     msgQ->mQueQLock = spin_lock_instance( next_striped_spin_lock_num() );
     
-    add_repeating_timer_ms( parseRptTime, parseWH1080bits_callback, (void *) &WH1080msgQ, 
-                                 (repeating_timer_t *)&msgQ->mQueRptTmr );
-    add_repeating_timer_ms( fifoRptTime, poll_FIFO_callback, (void *) &WH1080bitQ, 
-                                 (repeating_timer_t *)&bitQ->bQueRptTmr );
+    sched_init_slot(SCHED_CORE0_SLOT3,parseRptTime, parseWH1080bits_callback, (void *)&WH1080msgQ);
+    sched_init_slot(SCHED_CORE0_SLOT1,fifoRptTime,  poll_FIFO_callback,       (void *)&WH1080bitQ);
+
     bi_decl(bi_1pin_with_name(WH1080_GPIO_RX, WH1080_CONFIG));
 }
 void WH1080_uninit( void ) {
     volatile msgQue_t * msgQ = &WH1080msgQ;
     volatile bitQue_t * bitQ = msgQ->mQueBitQueP;
-    bool cancelled = cancel_repeating_timer( (repeating_timer_t *)&bitQ->bQueRptTmr );
-    cancelled      = cancel_repeating_timer( (repeating_timer_t *)&msgQ->mQueRptTmr );
     pio_sm_set_enabled( bitQ->bQue_pio_id, bitQ->bQue_sm_id, false );
 }

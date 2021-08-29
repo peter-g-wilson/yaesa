@@ -28,6 +28,29 @@ pico_generate_pio_header(yaesa_rp2040 ${CMAKE_CURRENT_LIST_DIR}/ds18b20_1w.pio)
 pico_set_program_name(yaesa_rp2040 "yaesa_rp2040")
 pico_set_program_version(yaesa_rp2040 "0.1")
 
+add_custom_command(TARGET yaesa_rp2040 POST_BUILD
+COMMAND ${CMAKE_OBJDUMP} -h yaesa_rp2040${CMAKE_EXECUTABLE_SUFFIX} >yaesa_rp2040.dis.src
+COMMAND ${CMAKE_OBJDUMP} -dSl yaesa_rp2040${CMAKE_EXECUTABLE_SUFFIX} >>yaesa_rp2040.dis.src
+)
+
+if (DEFINED ENV{PICO_BOARD})
+    if( $ENV{PICO_BOARD} STREQUAL "pimoroni_tiny2040")
+        # modified linker script from 2 MB to 8 MB flash
+        # original from ...\pico-sdk\src\rp2_common\pico_standard_link\memmap_default.ld
+        ##  MEMORY
+        ##  {
+        ## -    FLASH(rx) : ORIGIN = 0x10000000, LENGTH = 2048k
+        ## +    FLASH(rx) : ORIGIN = 0x10000000, LENGTH = 8192k
+        ## ...
+        ##  }
+        # (?perhaps script a copy and sed?)
+        set(FLASH_8MB_LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/memmap_flash_8mb.ld")
+        message("Using linker scipt ${FLASH_8MB_LINKER_SCRIPT}")
+        pico_set_linker_script(yaesa_rp2040 ${FLASH_8MB_LINKER_SCRIPT})
+        unset(FLASH_8MB_LINKER_SCRIPT)
+    endif()
+endif()
+
 target_sources(yaesa_rp2040 PRIVATE
         queues_for_msgs_and_bits.c
         output_format.c
@@ -37,6 +60,7 @@ target_sources(yaesa_rp2040 PRIVATE
         bme280_spi.c
         ds18b20_1w.c
         led_control.c
+        sched_ms.c
         )
 
 pico_enable_stdio_uart(yaesa_rp2040 0)
@@ -54,6 +78,7 @@ target_link_libraries(yaesa_rp2040
         hardware_pio
         hardware_timer
         hardware_pwm
+        hardware_sync
         )
 
 pico_add_extra_outputs(yaesa_rp2040)
