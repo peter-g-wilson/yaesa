@@ -4,6 +4,20 @@
 Remote wireless temperature sensors and remote wireless weather station with temperature/humidity/rain/wind sensors.<br>
 Local sensor with temperature/humidity/pressure and another local'ish sensor with a temperature sensor at the end of a long wire.
 
+**Updates 2021/09/01 -**
+<br>
+some cmakec flexibility
+- If PROJ_BOARD_STDIO_UART environment variable is defined then use UART 0 for stdio <br>
+Based on PICO_BOARD, if tiny2040 then tx is 28 and rx 29 otherwise 21 and 22 <br>
+With no USB for stdio being used the default alarm pool is disabled
+- If PROJ_BOARD_COPY_TO_RAM environment variable is defined then set PICO_COPY_TO_RAM variable to 1
+- Treate setting the flash size indepentently from the board being used
+- If PROJ_BOARD_FLASH_SIZE environment variable is set then copy and sed modify the appropriate linker script
+- BE AWARE - if build type was specified with variable PICO_NO_FLASH then the flash size isn't changed! <br>
+Assumed are the location/names of the linker scripts and a sed pattern match that also expects to find the pico default 2048k <br>
+The linker script customisation is placed in the build directory so the hard coded file memmap_flash_8mb.ld is redundant/deleted <br>
+- With some of the above changes, the code size including SDK can reduce from just under 50K to under 22K 
+
 **Updates 2021/08/27 -**
 <br>
 - replaced repeating_timer calls with simple'ish 1 ms tick scheduler (_**sched.c**_ and _**h**_) that triggers callbacks running on each core
