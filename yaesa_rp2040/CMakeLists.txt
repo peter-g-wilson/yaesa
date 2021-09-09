@@ -71,6 +71,8 @@ add_custom_command(TARGET yaesa_rp2040 POST_BUILD
     COMMAND ${CMAKE_OBJDUMP} -dSl yaesa_rp2040${CMAKE_EXECUTABLE_SUFFIX} >>yaesa_rp2040.dis.src
 )
 
+# target_compile_options(yaesa_rp2040 PRIVATE --save-temps)
+
 target_sources(yaesa_rp2040 PRIVATE
         queues_for_msgs_and_bits.c
         output_format.c
