@@ -119,7 +119,7 @@ void parseF007Tbits_callback(void * msgQp) {
 }
 
 /*-----------------------------------------------------------------*/
-#define F007T_HEXCODES_LEN (OFRMT_SNDR_TSTAMP_LEN + F007T_MAXMSGBYTS * 2)
+#define F007T_HEXCODES_LEN (OFRMT_HEADER_LEN + F007T_MAXMSGBYTS * 2)
 #define F007T_MAXMSGFRMT 15
 #define F007T_PREDASHPAD  (OFRMT_HEXCODS_LEN - F007T_MAXMSGBYTS * 2)
 #define F007T_POSTDASHPAD (OFRMT_DECODES_LEN - F007T_MAXMSGFRMT)
@@ -140,10 +140,12 @@ int decode_F007T_msg( volatile msgQue_t * msgQ, outBuff_t outBuff, outArgs_t * o
     if (tmpDegC < -99.0F) tmpDegC = -99.0F;
     if (tmpDegC > 999.0F) tmpDegC = 999.0F;
 
-    int msgLen = snprintf( &outBuff[0], OFRMT_SNDR_TSTAMP_LEN+1, "%0*X-%0*X-",
-                      OFRMT_SNDR_ID_LEN, msgId, OFRMT_TSTAMP_LEN, msgRecP->mRecMsgTimeStamp);
+    int msgLen = snprintf( &outBuff[0], OFRMT_HEADER_LEN+1, "%0*d %0*X-%0*X-",
+                            OFRMT_SEQ_NUM_LEN, OpMsgSeqNum, OFRMT_SNDR_ID_LEN, msgId, 
+                                          OFRMT_TSTAMP_LEN, msgRecP->mRecMsgTimeStamp);
+    OpMsgSeqNum++;
     for (uint i = 0; i < F007T_MAXMSGBYTS; i++) {
-        msgLen += snprintf( &outBuff[OFRMT_SNDR_TSTAMP_LEN+(i*2)], 2+1, "%02X", msgP[i] );
+        msgLen += snprintf( &outBuff[OFRMT_HEADER_LEN+(i*2)], 2+1, "%02X", msgP[i] );
     }
     msgLen += snprintf( &outBuff[F007T_HEXCODES_LEN], OFRMT_TOTAL_LEN - F007T_HEXCODES_LEN + 1,
                "%*.*s-i%c%1d,b:%1d,t:%05.1f%*.*s",
