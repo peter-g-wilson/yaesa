@@ -85,7 +85,7 @@ typedef struct msgQueStruct {
 /*-----------------------------------------------------------------*/
 extern void putNxtMsg( volatile msgQue_t * msgQ );
 extern void freeLastMsg( volatile msgQue_t * msgQ );
-extern bool tryMsgBuf( volatile msgQue_t * msgQ );
+extern bool tryMsgBuf( volatile msgQue_t * msgQ, uint32_t * tStampP );
 
 /*-----------------------------------------------------------------*/
 extern void putNxtWrd( volatile bitQue_t * bitQ, uint32_t nxtWrd );

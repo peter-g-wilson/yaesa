@@ -216,8 +216,8 @@ int decode_WH1080_msg( volatile msgQue_t * msgQ, outBuff_t outBuff, outArgs_t * 
 /*-----------------------------------------------------------------*/
 outBuff_t WH1080msgcods;
 
-bool WH1080_tryMsgBuf( void ) {
-    return tryMsgBuf( &WH1080msgQ );;
+bool WH1080_tryMsgBuf( uint32_t * tStampP ) {
+    return tryMsgBuf( &WH1080msgQ, tStampP );;
 }
 
 int WH1080_doMsgBuf( void ) {

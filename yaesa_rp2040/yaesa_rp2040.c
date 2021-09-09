@@ -92,20 +92,41 @@ void core1_entry() {
     while (true) {
         bool done_delay = false;
         int sndr;
-        if (WH1080_tryMsgBuf()) {
-            sndr = WH1080_doMsgBuf();
-            ledctl_put( sndrToColour(sndr) );
-            sleep_ms(PACING_DELAY_MS);
-            done_delay = true;
-            ledctl_put( ledctl_colAllOff );
-        };
-        if (F007T_tryMsgBuf()) {
-            sndr = F007T_doMsgBuf();
-            ledctl_put( sndrToColour(sndr) );
-            sleep_ms(PACING_DELAY_MS);
-            done_delay = true;
-            ledctl_put( ledctl_colAllOff );
-        };
+        bool gotSomeWH1080, gotSomeF007T;
+        do {
+            uint32_t tStampWH1080, tStampF007T;
+            gotSomeWH1080 = WH1080_tryMsgBuf(&tStampWH1080);
+            gotSomeF007T  = F007T_tryMsgBuf(&tStampF007T);
+            bool doWH1080 = false;
+            bool doF007T  = false;
+            if (gotSomeWH1080 && !gotSomeF007T) {
+                doWH1080 = true;
+            } else if (!gotSomeWH1080 && gotSomeF007T) {
+                doF007T = true;
+            } else if (gotSomeWH1080 && gotSomeF007T) {
+                uint32_t tDiff = tStampWH1080 - tStampF007T;
+                // "relatively" small tDiff likely means F007T is older than WH1080
+                if (tDiff <= (uint32_t)0x7FFFFFFF) {
+                    doF007T = true;
+                } else {
+                    doWH1080 = true;
+                }
+            }
+            if (doWH1080) {
+                sndr = WH1080_doMsgBuf();
+                ledctl_put( sndrToColour(sndr) );
+                sleep_ms(PACING_DELAY_MS);
+                done_delay = true;
+                ledctl_put( ledctl_colAllOff );
+            } else if (doF007T) {
+                sndr = F007T_doMsgBuf();
+                ledctl_put( sndrToColour(sndr) );
+                sleep_ms(PACING_DELAY_MS);
+                done_delay = true;
+                ledctl_put( ledctl_colAllOff );
+            }
+        } while (gotSomeWH1080 || gotSomeF007T);
+
         tNow = to_ms_since_boot( get_absolute_time() );
         if ((tNow - BME280_tPrev) > BME280_PERIOD_MS) {
             BME280_tPrev = tNow;

@@ -165,8 +165,8 @@ int decode_F007T_msg( volatile msgQue_t * msgQ, outBuff_t outBuff, outArgs_t * o
 /*-----------------------------------------------------------------*/
 outBuff_t F007Tmsgcods;
 
-bool F007T_tryMsgBuf( void ) {
-    return tryMsgBuf( &F007TmsgQ );
+bool F007T_tryMsgBuf( uint32_t * tStampP ) {
+    return tryMsgBuf( &F007TmsgQ, tStampP );
 }
 
 int F007T_doMsgBuf( void ) {
