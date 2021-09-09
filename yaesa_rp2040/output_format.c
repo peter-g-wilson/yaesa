@@ -10,6 +10,7 @@
 #include "proj_board.h"
 
 const uint8_t dash_padding[] = "------------------------------------------------------------------------";
+uint8_t OpMsgSeqNum = 0;
 
 void print_msg( outBuff_t outBuff, outArgs_t * outArgsP ) {
     uint    totSmplMsgs = outArgsP->oArgMsgSmplVrfyCnt + outArgsP->oArgMsgSmplUnVrfyCnt;

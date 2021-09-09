@@ -125,7 +125,7 @@ void parseWH1080bits_callback(void * msgQp) {
 }
 
 /*-----------------------------------------------------------------*/
-#define WH1080_HEXCODES_LEN (OFRMT_SNDR_TSTAMP_LEN + WH1080_MAXMSGBYTS * 2)
+#define WH1080_HEXCODES_LEN (OFRMT_HEADER_LEN + WH1080_MAXMSGBYTS * 2)
 #define WH1080_MAX_FD0B_FRMT 31
 #define WH1080_MAX_FD0A_FRMT 49
 #define WH1080_UNKWN_FRMT     1
@@ -142,10 +142,11 @@ int decode_WH1080_msg( volatile msgQue_t * msgQ, outBuff_t outBuff, outArgs_t * 
     bool validVals = false;
     uint sndrIdx;
 
-    int msgLen = snprintf( &outBuff[0], OFRMT_SNDR_TSTAMP_LEN+1, "%0*X-%0*X-",
-                           OFRMT_SNDR_ID_LEN, msgId, OFRMT_TSTAMP_LEN, msgRecP->mRecMsgTimeStamp);
+    int msgLen = snprintf( &outBuff[0], OFRMT_HEADER_LEN+1, "%03d %0*X-%0*X-",
+                OpMsgSeqNum, OFRMT_SNDR_ID_LEN, msgId, OFRMT_TSTAMP_LEN, msgRecP->mRecMsgTimeStamp);
+    OpMsgSeqNum++;
     for (uint i = 0; i < WH1080_MAXMSGBYTS; i++) {
-        msgLen += snprintf( &outBuff[OFRMT_SNDR_TSTAMP_LEN+(i*2)], 2+1, "%02X", msgP[i] );
+        msgLen += snprintf( &outBuff[OFRMT_HEADER_LEN+(i*2)], 2+1, "%02X", msgP[i] );
     }
     if  (msgId == 0xFD0B) {
         uint8_t *sTyp = ((msgP[2] & 0x0F) == 10) ? "DCF77" : "?????"; // 5 
