@@ -142,8 +142,9 @@ int decode_WH1080_msg( volatile msgQue_t * msgQ, outBuff_t outBuff, outArgs_t * 
     bool validVals = false;
     uint sndrIdx;
 
-    int msgLen = snprintf( &outBuff[0], OFRMT_HEADER_LEN+1, "%03d %0*X-%0*X-",
-                OpMsgSeqNum, OFRMT_SNDR_ID_LEN, msgId, OFRMT_TSTAMP_LEN, msgRecP->mRecMsgTimeStamp);
+    int msgLen = snprintf( &outBuff[0], OFRMT_HEADER_LEN+1, "%0*d %0*X-%0*X-",
+                           OFRMT_SEQ_NUM_LEN, OpMsgSeqNum, OFRMT_SNDR_ID_LEN, msgId, 
+                                         OFRMT_TSTAMP_LEN, msgRecP->mRecMsgTimeStamp);
     OpMsgSeqNum++;
     for (uint i = 0; i < WH1080_MAXMSGBYTS; i++) {
         msgLen += snprintf( &outBuff[OFRMT_HEADER_LEN+(i*2)], 2+1, "%02X", msgP[i] );

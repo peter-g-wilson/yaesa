@@ -140,8 +140,9 @@ int decode_F007T_msg( volatile msgQue_t * msgQ, outBuff_t outBuff, outArgs_t * o
     if (tmpDegC < -99.0F) tmpDegC = -99.0F;
     if (tmpDegC > 999.0F) tmpDegC = 999.0F;
 
-    int msgLen = snprintf( &outBuff[0], OFRMT_HEADER_LEN+1, "%03d %0*X-%0*X-",
-            OpMsgSeqNum, OFRMT_SNDR_ID_LEN, msgId, OFRMT_TSTAMP_LEN, msgRecP->mRecMsgTimeStamp);
+    int msgLen = snprintf( &outBuff[0], OFRMT_HEADER_LEN+1, "%0*d %0*X-%0*X-",
+                            OFRMT_SEQ_NUM_LEN, OpMsgSeqNum, OFRMT_SNDR_ID_LEN, msgId, 
+                                          OFRMT_TSTAMP_LEN, msgRecP->mRecMsgTimeStamp);
     OpMsgSeqNum++;
     for (uint i = 0; i < F007T_MAXMSGBYTS; i++) {
         msgLen += snprintf( &outBuff[OFRMT_HEADER_LEN+(i*2)], 2+1, "%02X", msgP[i] );

@@ -213,8 +213,8 @@ int DS18B20_read(uint32_t tStamp)
         if (temp_degC < -99.0F) temp_degC = -99.0F;
         if (temp_degC > 999.0F) temp_degC = 999.0F;
 
-        int msgLen = snprintf(&DS18B20msg[0], OFRMT_HEADER_LEN+1, "%03d %0*X-%0*X-", 
-                                   OpMsgSeqNum, OFRMT_SNDR_ID_LEN, msgId, OFRMT_TSTAMP_LEN, tStamp);
+        int msgLen = snprintf(&DS18B20msg[0], OFRMT_HEADER_LEN+1, "%0*d %0*X-%0*X-", 
+                OFRMT_SEQ_NUM_LEN, OpMsgSeqNum, OFRMT_SNDR_ID_LEN, msgId, OFRMT_TSTAMP_LEN, tStamp);
         OpMsgSeqNum++;
         for (uint i = 0; i < DS18B20_MAXMSGBYTS; i++) {
             msgLen += snprintf(&DS18B20msg[OFRMT_HEADER_LEN + (i * 2)], 2 + 1, "%02X", rx_buff[i]);

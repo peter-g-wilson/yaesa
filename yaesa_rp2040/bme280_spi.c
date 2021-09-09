@@ -301,8 +301,8 @@ int BME280_read(uint32_t tStamp)
         if (humid_pct > 999)     humid_pct = 999;
     
         uint msgId = BME280_SNDR_ID;
-        int msgLen = snprintf( &BME280msg[0], OFRMT_HEADER_LEN+1, "%03d %0*X-%0*X-",
-                                 OpMsgSeqNum, OFRMT_SNDR_ID_LEN, msgId, OFRMT_TSTAMP_LEN, tStamp);
+        int msgLen = snprintf( &BME280msg[0], OFRMT_HEADER_LEN+1, "%0*d %0*X-%0*X-",
+                    OFRMT_SEQ_NUM_LEN, OpMsgSeqNum, OFRMT_SNDR_ID_LEN, msgId, OFRMT_TSTAMP_LEN, tStamp);
         OpMsgSeqNum++;
         for (uint i = 0; i < BME280_MAXMSGBYTS; i++) {
             msgLen += snprintf( &BME280msg[OFRMT_HEADER_LEN+(i*2)], 2+1, "%02X", buffer[i] );

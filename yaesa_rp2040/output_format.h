@@ -1,8 +1,8 @@
 
 #ifndef  OUTPUT_FORMAT_H
 
-//                        1         2            1         2         3         4
-// 1234-12345678-1234567890123456789012-1234567890123456789012345678901234567890123456789
+//                            1         2            1         2         3         4
+// 123-1234-12345678-1234567890123456789012-1234567890123456789012345678901234567890123456789
 #define OFRMT_SEQ_NUM_LEN  3
 #define OFRMT_SNDR_ID_LEN  4
 #define OFRMT_TSTAMP_LEN   8
@@ -18,6 +18,7 @@
                "ID %04X: Expected %d but got %d - printf formats are tricky stuff\n",id,sizeof(outBuff_t),len)
 
 typedef uint8_t outBuff_t[OUTBUFF_TOTAL_LEN];
+extern uint8_t OpMsgSeqNum;
 extern const uint8_t dash_padding[OFRMT_TOTAL_LEN - OFRMT_HEADER_LEN + 1];
 
 typedef struct outArgsStruct {
@@ -38,8 +39,6 @@ typedef struct outArgsStruct {
     uint     oArgWrdHiWtr;
     uint     oArgFiFoHiWtr;
 } outArgs_t;
-
-extern uint8_t OpMsgSeqNum;
 
 extern void print_msg( uint8_t outBuff[OUTBUFF_TOTAL_LEN], outArgs_t * outArgsP );
 extern void output_copy_args( int len, uint8_t id, volatile msgQue_t * msgQ, volatile msgRec_t * msgRecP, outArgs_t * outArgsP);
