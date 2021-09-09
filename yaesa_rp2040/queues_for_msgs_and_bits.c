@@ -29,8 +29,13 @@ void freeLastMsg( volatile msgQue_t * msgQ ) {
     }
     spin_unlock(msgQ->mQueQLock, flags);
 }
-bool tryMsgBuf( volatile msgQue_t * msgQ ) {
-    return msgQ->mQueMsgCntr > 0; 
+bool tryMsgBuf( volatile msgQue_t * msgQ , uint32_t * tStampP) {
+    bool gotSome = msgQ->mQueMsgCntr > 0;
+    if (gotSome) {
+        volatile msgRec_t * msgRecP = &msgQ->mQueRecStats[msgQ->mQueMsgTail];
+        *tStampP = msgRecP->mRecMsgTimeStamp;
+    }
+    return gotSome; 
 }
 
 /*-----------------------------------------------------------------*/
