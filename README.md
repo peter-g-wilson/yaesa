@@ -9,6 +9,7 @@ Local sensor with temperature/humidity/pressure and another local'ish sensor wit
 - for WH1080 and F007T messages, if both queues have messages available to send, choose the oldest first by comparing the timestamps from when the messages were originally queued
 - add incrementing sequence number to messages sent - for primative sanity of the receiver
 - try to fix .pio's with end of lines that keep reverting to windows CR/LF - the pio assembler is not currently EOL agnostic
+- tidy up repeating code patterns used for output formatting 
 
 **Updates 2021/09/01 -**
 <br>
