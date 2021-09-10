@@ -262,9 +262,8 @@ void BME280_init()
 outBuff_t BME280msg;
 
 #define BME280_MAXMSGBYTS 8
-#define BME280_HEXCODES_LEN (OFRMT_HEADER_LEN + BME280_MAXMSGBYTS * 2)
 #define BME280_MAXMSGFRMT 30
-#define BME280_PREDASHPAD  (OFRMT_HEXCODS_LEN - BME280_MAXMSGBYTS * 2)
+#define BME280_PREDASHPAD  (OFRMT_HEXCODS_LEN - BME280_MAXMSGBYTS * 2 + 1)
 #define BME280_POSTDASHPAD (OFRMT_DECODES_LEN - BME280_MAXMSGFRMT)
 
 int BME280_read(uint32_t tStamp)
@@ -301,20 +300,13 @@ int BME280_read(uint32_t tStamp)
         if (humid_pct > 999)     humid_pct = 999;
     
         uint msgId = BME280_SNDR_ID;
-        int msgLen = snprintf( &BME280msg[0], OFRMT_HEADER_LEN+1, "%0*d %0*X-%0*X-",
-                    OFRMT_SEQ_NUM_LEN, OpMsgSeqNum, OFRMT_SNDR_ID_LEN, msgId, OFRMT_TSTAMP_LEN, tStamp);
-        OpMsgSeqNum++;
-        for (uint i = 0; i < BME280_MAXMSGBYTS; i++) {
-            msgLen += snprintf( &BME280msg[OFRMT_HEADER_LEN+(i*2)], 2+1, "%02X", buffer[i] );
-        }
-        msgLen += snprintf( &BME280msg[BME280_HEXCODES_LEN], OFRMT_TOTAL_LEN - BME280_HEXCODES_LEN + 1,
-                   "%*.*s-i:%01X,b:0,T:%05.1f,H:%03d,P:%06.1f%*.*s",
-                   BME280_PREDASHPAD, BME280_PREDASHPAD, dash_padding,
-                   msgId, temp_degC, humid_pct, press_hPa,
-                   BME280_POSTDASHPAD, BME280_POSTDASHPAD, dash_padding);
-    
+        int msgLen = opfrmt_snprintf_header( BME280msg, msgId, tStamp, buffer,
+                                             BME280_MAXMSGBYTS, BME280_PREDASHPAD );
+        msgLen += snprintf( &BME280msg[msgLen], OFRMT_TOTAL_LEN - msgLen - BME280_POSTDASHPAD + 1,
+                            "i:%01X,b:0,T:%05.1f,H:%03d,P:%06.1f", msgId, temp_degC, humid_pct, press_hPa);
+        msgLen += opfrmt_snprintf_dashpad( BME280msg, msgLen, BME280_POSTDASHPAD );
         msgLen += 3;
-        OFRMT_PRINT_PATHETIC_EXCUSE(msgId,msgLen);
+        OPFRMT_PRINT_PATHETIC_EXCUSE(msgId,msgLen);
     
         BME280msg[msgLen-3] = 13;
         BME280msg[msgLen-2] = 10;

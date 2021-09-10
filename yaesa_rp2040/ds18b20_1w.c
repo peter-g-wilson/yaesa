@@ -193,9 +193,8 @@ void DS18B20_init(void)
 
 outBuff_t DS18B20msg;
 
-#define DS18B20_HEXCODES_LEN (OFRMT_HEADER_LEN + DS18B20_MAXMSGBYTS * 2)
 #define DS18B20_MAXMSGFRMT 15
-#define DS18B20_PREDASHPAD  (OFRMT_HEXCODS_LEN - DS18B20_MAXMSGBYTS * 2)
+#define DS18B20_PREDASHPAD  (OFRMT_HEXCODS_LEN - DS18B20_MAXMSGBYTS * 2 + 1)
 #define DS18B20_POSTDASHPAD (OFRMT_DECODES_LEN - DS18B20_MAXMSGFRMT)
 
 int DS18B20_read(uint32_t tStamp)
@@ -213,19 +212,13 @@ int DS18B20_read(uint32_t tStamp)
         if (temp_degC < -99.0F) temp_degC = -99.0F;
         if (temp_degC > 999.0F) temp_degC = 999.0F;
 
-        int msgLen = snprintf(&DS18B20msg[0], OFRMT_HEADER_LEN+1, "%0*d %0*X-%0*X-", 
-                OFRMT_SEQ_NUM_LEN, OpMsgSeqNum, OFRMT_SNDR_ID_LEN, msgId, OFRMT_TSTAMP_LEN, tStamp);
-        OpMsgSeqNum++;
-        for (uint i = 0; i < DS18B20_MAXMSGBYTS; i++) {
-            msgLen += snprintf(&DS18B20msg[OFRMT_HEADER_LEN + (i * 2)], 2 + 1, "%02X", rx_buff[i]);
-        }
-        msgLen += snprintf(&DS18B20msg[DS18B20_HEXCODES_LEN], OFRMT_TOTAL_LEN - DS18B20_HEXCODES_LEN + 1,
-                           "%*.*s-i:%01X,b:0,T:%05.1f%*.*s",
-                           DS18B20_PREDASHPAD, DS18B20_PREDASHPAD, dash_padding,
-                           msgId, temp_degC,
-                           DS18B20_POSTDASHPAD, DS18B20_POSTDASHPAD, dash_padding);
+        int msgLen = opfrmt_snprintf_header( DS18B20msg, msgId, tStamp, rx_buff,
+                                             DS18B20_MAXMSGBYTS, DS18B20_PREDASHPAD );
+        msgLen += snprintf(&DS18B20msg[msgLen], OFRMT_TOTAL_LEN - msgLen - DS18B20_POSTDASHPAD + 1,
+                           "i:%01X,b:0,T:%05.1f", msgId, temp_degC);
+        msgLen += opfrmt_snprintf_dashpad( DS18B20msg, msgLen, DS18B20_POSTDASHPAD );
         msgLen += 3;
-        OFRMT_PRINT_PATHETIC_EXCUSE(msgId, msgLen);
+        OPFRMT_PRINT_PATHETIC_EXCUSE(msgId, msgLen);
 
         DS18B20msg[msgLen - 3] = 13;
         DS18B20msg[msgLen - 2] = 10;

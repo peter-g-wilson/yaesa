@@ -125,11 +125,10 @@ void parseWH1080bits_callback(void * msgQp) {
 }
 
 /*-----------------------------------------------------------------*/
-#define WH1080_HEXCODES_LEN (OFRMT_HEADER_LEN + WH1080_MAXMSGBYTS * 2)
 #define WH1080_MAX_FD0B_FRMT 31
 #define WH1080_MAX_FD0A_FRMT 49
 #define WH1080_UNKWN_FRMT     1
-#define WH1080_PREDASHPAD        (OFRMT_HEXCODS_LEN - WH1080_MAXMSGBYTS * 2)
+#define WH1080_PREDASHPAD        (OFRMT_HEXCODS_LEN - WH1080_MAXMSGBYTS * 2 + 1)
 #define WH1080_FD0B_POSTDASHPAD  (OFRMT_DECODES_LEN - WH1080_MAX_FD0B_FRMT)
 #define WH1080_FD0A_POSTDASHPAD  (OFRMT_DECODES_LEN - WH1080_MAX_FD0A_FRMT)
 #define WH1080_UNKWN_POSTDASHPAD (OFRMT_DECODES_LEN - WH1080_UNKWN_FRMT)
@@ -142,13 +141,8 @@ int decode_WH1080_msg( volatile msgQue_t * msgQ, outBuff_t outBuff, outArgs_t * 
     bool validVals = false;
     uint sndrIdx;
 
-    int msgLen = snprintf( &outBuff[0], OFRMT_HEADER_LEN+1, "%0*d %0*X-%0*X-",
-                           OFRMT_SEQ_NUM_LEN, OpMsgSeqNum, OFRMT_SNDR_ID_LEN, msgId, 
-                                         OFRMT_TSTAMP_LEN, msgRecP->mRecMsgTimeStamp);
-    OpMsgSeqNum++;
-    for (uint i = 0; i < WH1080_MAXMSGBYTS; i++) {
-        msgLen += snprintf( &outBuff[OFRMT_HEADER_LEN+(i*2)], 2+1, "%02X", msgP[i] );
-    }
+    int msgLen = opfrmt_snprintf_header( outBuff, msgId, msgRecP->mRecMsgTimeStamp, msgP,
+                                         WH1080_MAXMSGBYTS, WH1080_PREDASHPAD );
     if  (msgId == 0xFD0B) {
         uint8_t *sTyp = ((msgP[2] & 0x0F) == 10) ? "DCF77" : "?????"; // 5 
         uint     tHrs = ((msgP[3] & 0x30) >> 4)*10 + (msgP[3] & 0x0F);
@@ -161,11 +155,10 @@ int decode_WH1080_msg( volatile msgQue_t * msgQ, outBuff_t outBuff, outArgs_t * 
                          (tHrs > 23) || (tMin > 59) || (tSec > 59) ); 
         if (validVals) {
             sndrIdx = 0x0B;
-            msgLen += snprintf( &outBuff[WH1080_HEXCODES_LEN], OFRMT_TOTAL_LEN - WH1080_HEXCODES_LEN + 1,
-                   "%*.*s-i:%1X,s:%5.5s,%04d-%02d-%02d,%02d:%02d:%02d%*.*s",
-                   WH1080_PREDASHPAD,  WH1080_PREDASHPAD,  dash_padding,
-                   sndrIdx, sTyp, tYrs, tMth, tDay, tHrs, tMin, tSec,
-                   WH1080_FD0B_POSTDASHPAD, WH1080_FD0B_POSTDASHPAD, dash_padding);
+            msgLen += snprintf(&outBuff[msgLen], OFRMT_TOTAL_LEN - msgLen - WH1080_FD0B_POSTDASHPAD + 1,
+                               "i:%1X,s:%5.5s,%04d-%02d-%02d,%02d:%02d:%02d",
+                               sndrIdx, sTyp, tYrs, tMth, tDay, tHrs, tMin, tSec );
+            msgLen += opfrmt_snprintf_dashpad( outBuff, msgLen, WH1080_FD0B_POSTDASHPAD );
         }
     } else if (msgId == 0xFD0A) {
         uint16_t tempRaw    = ((msgP[2] & 0x0F) << 8) | 
@@ -189,29 +182,25 @@ int decode_WH1080_msg( volatile msgQue_t * msgQ, outBuff_t outBuff, outArgs_t * 
         if (wndGst_mps > 99.9F) wndGst_mps =   99.9F;
         validVals = true;
         sndrIdx = 0x0A;
-
-        msgLen += snprintf( &outBuff[WH1080_HEXCODES_LEN], OFRMT_TOTAL_LEN - WH1080_HEXCODES_LEN + 1,
-               "%*.*s-i:%1X,b:%1d,t:%05.1f,h:%03d,r:%06.1f,a:%04.1f,g:%04.1f,c:%02d%*.*s",
-               WH1080_PREDASHPAD,  WH1080_PREDASHPAD,  dash_padding,
-               sndrIdx, battSts, tempDegC, humid, rain_mm, wndAvg_mps, wndGst_mps, wndDir,
-               WH1080_FD0A_POSTDASHPAD, WH1080_FD0A_POSTDASHPAD, dash_padding);
-
+        msgLen += snprintf(&outBuff[msgLen], OFRMT_TOTAL_LEN - msgLen - WH1080_FD0A_POSTDASHPAD + 1,
+                           "i:%1X,b:%1d,t:%05.1f,h:%03d,r:%06.1f,a:%04.1f,g:%04.1f,c:%02d",
+                        sndrIdx, battSts, tempDegC, humid, rain_mm, wndAvg_mps, wndGst_mps, wndDir);
+        msgLen += opfrmt_snprintf_dashpad( outBuff, msgLen, WH1080_FD0A_POSTDASHPAD );
     }
     if (!validVals) {
         sndrIdx = 0x0C;
-        msgLen += snprintf( &outBuff[WH1080_HEXCODES_LEN], OFRMT_TOTAL_LEN - WH1080_HEXCODES_LEN + 1,
-               "%*.*s-?%*.*s",
-               WH1080_PREDASHPAD, WH1080_PREDASHPAD, dash_padding,
-               WH1080_UNKWN_POSTDASHPAD, WH1080_UNKWN_POSTDASHPAD, dash_padding);
+        msgLen += snprintf(&outBuff[msgLen], OFRMT_TOTAL_LEN - msgLen - WH1080_UNKWN_POSTDASHPAD + 1,
+                                             "?");
+        msgLen += opfrmt_snprintf_dashpad( outBuff, msgLen, WH1080_UNKWN_POSTDASHPAD );
     }
     msgLen += 3;
-    OFRMT_PRINT_PATHETIC_EXCUSE(msgId,msgLen);
+    OPFRMT_PRINT_PATHETIC_EXCUSE(msgId,msgLen);
 
     outBuff[msgLen-3] = 13;
     outBuff[msgLen-2] = 10;
     outBuff[msgLen-1] = 0;
     
-    output_copy_args( msgLen, msgId & 0x000F, msgQ, msgRecP, outArgsP);
+    opfrmt_copy_args( msgLen, msgId & 0x000F, msgQ, msgRecP, outArgsP);
     return sndrIdx;
 }
 
@@ -227,7 +216,7 @@ int WH1080_doMsgBuf( void ) {
     uint sndrIdx = decode_WH1080_msg( &WH1080msgQ, WH1080msgcods, &outArgs );
     freeLastMsg( &WH1080msgQ );
     uartIO_buffSend(&WH1080msgcods[0],outArgs.oArgMsgLen);
-    print_msg( WH1080msgcods, &outArgs );
+    opfrmt_print_args( WH1080msgcods, &outArgs );
     return sndrIdx;
 }
 /*-----------------------------------------------------------------*/

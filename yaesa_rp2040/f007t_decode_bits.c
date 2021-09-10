@@ -119,9 +119,8 @@ void parseF007Tbits_callback(void * msgQp) {
 }
 
 /*-----------------------------------------------------------------*/
-#define F007T_HEXCODES_LEN (OFRMT_HEADER_LEN + F007T_MAXMSGBYTS * 2)
 #define F007T_MAXMSGFRMT 15
-#define F007T_PREDASHPAD  (OFRMT_HEXCODS_LEN - F007T_MAXMSGBYTS * 2)
+#define F007T_PREDASHPAD  (OFRMT_HEXCODS_LEN - F007T_MAXMSGBYTS * 2 + 1)
 #define F007T_POSTDASHPAD (OFRMT_DECODES_LEN - F007T_MAXMSGFRMT)
 
 int decode_F007T_msg( volatile msgQue_t * msgQ, outBuff_t outBuff, outArgs_t * outArgsP ) {
@@ -140,27 +139,20 @@ int decode_F007T_msg( volatile msgQue_t * msgQ, outBuff_t outBuff, outArgs_t * o
     if (tmpDegC < -99.0F) tmpDegC = -99.0F;
     if (tmpDegC > 999.0F) tmpDegC = 999.0F;
 
-    int msgLen = snprintf( &outBuff[0], OFRMT_HEADER_LEN+1, "%0*d %0*X-%0*X-",
-                            OFRMT_SEQ_NUM_LEN, OpMsgSeqNum, OFRMT_SNDR_ID_LEN, msgId, 
-                                          OFRMT_TSTAMP_LEN, msgRecP->mRecMsgTimeStamp);
-    OpMsgSeqNum++;
-    for (uint i = 0; i < F007T_MAXMSGBYTS; i++) {
-        msgLen += snprintf( &outBuff[OFRMT_HEADER_LEN+(i*2)], 2+1, "%02X", msgP[i] );
-    }
-    msgLen += snprintf( &outBuff[F007T_HEXCODES_LEN], OFRMT_TOTAL_LEN - F007T_HEXCODES_LEN + 1,
-               "%*.*s-i%c%1d,b:%1d,t:%05.1f%*.*s",
-               F007T_PREDASHPAD,  F007T_PREDASHPAD,  dash_padding,
-               sndrIdx > MAX_F007T_KNWNSNDRIDX ? '?' : ':',sndrIdx+1,battLow,tmpDegC,
-               F007T_POSTDASHPAD, F007T_POSTDASHPAD, dash_padding);
-
+    int msgLen = opfrmt_snprintf_header( outBuff, msgId, msgRecP->mRecMsgTimeStamp, msgP,
+                                         F007T_MAXMSGBYTS, F007T_PREDASHPAD );
+    msgLen += snprintf(&outBuff[msgLen], OFRMT_TOTAL_LEN - msgLen - F007T_POSTDASHPAD + 1,
+                       "i%c%1d,b:%1d,t:%05.1f",
+                    sndrIdx > MAX_F007T_KNWNSNDRIDX ? '?' : ':',sndrIdx+1,battLow,tmpDegC);
+    msgLen += opfrmt_snprintf_dashpad( outBuff, msgLen, F007T_POSTDASHPAD );
     msgLen += 3;
-    OFRMT_PRINT_PATHETIC_EXCUSE(msgId,msgLen);
+    OPFRMT_PRINT_PATHETIC_EXCUSE(msgId,msgLen);
 
     outBuff[msgLen-3] = 13;
     outBuff[msgLen-2] = 10;
     outBuff[msgLen-1] = 0;
 
-    output_copy_args( msgLen, sndrIdx + 1, msgQ, msgRecP, outArgsP);
+    opfrmt_copy_args( msgLen, sndrIdx + 1, msgQ, msgRecP, outArgsP);
     return sndrIdx;
 }
 
@@ -176,7 +168,7 @@ int F007T_doMsgBuf( void ) {
     int sndrIdx = decode_F007T_msg( &F007TmsgQ, F007Tmsgcods, &outArgs );
     freeLastMsg( &F007TmsgQ );
     uartIO_buffSend(&F007Tmsgcods[0],outArgs.oArgMsgLen);
-    print_msg( F007Tmsgcods, &outArgs );
+    opfrmt_print_args( F007Tmsgcods, &outArgs );
     return sndrIdx;
 }
 

@@ -12,7 +12,7 @@
 const uint8_t dash_padding[] = "------------------------------------------------------------------------";
 uint8_t OpMsgSeqNum = 0;
 
-void print_msg( outBuff_t outBuff, outArgs_t * outArgsP ) {
+void opfrmt_print_args( outBuff_t outBuff, outArgs_t * outArgsP ) {
     uint    totSmplMsgs = outArgsP->oArgMsgSmplVrfyCnt + outArgsP->oArgMsgSmplUnVrfyCnt;
     uint    totGoodHits = outArgsP->oArgMsgSmplHdrHitsCnt - outArgsP->oArgMsgSmplChkErrsCnt;
     uint        totBits = outArgsP->oArgBitSmplTotCnt*32;
@@ -49,7 +49,7 @@ void print_msg( outBuff_t outBuff, outArgs_t * outArgsP ) {
         outArgsP->oArgMsgHiWtr, outArgsP->oArgWrdHiWtr, outArgsP->oArgFiFoHiWtr, outArgsP->oArgPrvChkInvld ); 
 }
 
-void output_copy_args( int len, uint8_t id, volatile msgQue_t * msgQ, volatile msgRec_t * msgRecP, outArgs_t * outArgsP)
+void opfrmt_copy_args( int len, uint8_t id, volatile msgQue_t * msgQ, volatile msgRec_t * msgRecP, outArgs_t * outArgsP)
 {
     volatile bitQue_t * bitQ = msgQ->mQueBitQueP;
 
@@ -73,4 +73,21 @@ void output_copy_args( int len, uint8_t id, volatile msgQue_t * msgQ, volatile m
     outArgsP->oArgWrdHiWtr  = bitQ->bQueWrdHiWater;
     outArgsP->oArgFiFoHiWtr = bitQ->bQueFiFoHiWater; 
     outArgsP->oArgPrvChkInvld = msgQ->mQuePrvChkSumInvld;
+}
+int opfrmt_snprintf_dashpad( char * opBufP, int strtLen, uint maxLen) {
+    return snprintf(&opBufP[strtLen], maxLen + 1, "%*.*s", maxLen, maxLen, dash_padding );
+}
+int opfrmt_snprintf_header( char * opBufP, uint msgId, uint32_t tStamp, 
+                           volatile uint8_t * ipBufP, uint bytLen, uint padLen) {
+    int hexLen = 0; 
+    int hexStrt = snprintf( opBufP , OFRMT_HEADER_LEN+1, "%0*d%1c%0*X%1c%0*X%1c",
+                            OFRMT_SEQ_NUM_LEN, OpMsgSeqNum, dash_padding[0],
+                            OFRMT_SNDR_ID_LEN, msgId,       dash_padding[0],
+                            OFRMT_TSTAMP_LEN,  tStamp,      dash_padding[0]);
+    OpMsgSeqNum++;
+    for (uint i = 0; i < bytLen; i++) {
+        hexLen += snprintf( &opBufP[hexStrt+(i*2)], 2+1, "%02X", ipBufP[i] );
+    }
+    int padStrt = hexStrt + hexLen;
+    return padStrt + opfrmt_snprintf_dashpad( opBufP, padStrt, padLen );
 }
