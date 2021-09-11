@@ -18,7 +18,7 @@ some cmakec flexibility
 Based on PICO_BOARD, if tiny2040 then tx is 28 and rx 29 otherwise 21 and 22 <br>
 With no USB for stdio being used the default alarm pool is disabled
 - If PROJ_BOARD_COPY_TO_RAM environment variable is defined then set PICO_COPY_TO_RAM variable to 1
-- Treate setting the flash size indepentently from the board being used
+- Treat setting the flash size indepentently from the board being used
 - If PROJ_BOARD_FLASH_SIZE environment variable is set then copy and sed modify the appropriate linker script
 - BE AWARE - if build type was specified with variable PICO_NO_FLASH then the flash size isn't changed! <br>
 Assumed are the location/names of the linker scripts and a sed pattern match that also expects to find the pico default 2048k <br>
