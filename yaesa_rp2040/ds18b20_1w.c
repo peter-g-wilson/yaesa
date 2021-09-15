@@ -224,7 +224,7 @@ int DS18B20_read(uint32_t tStamp)
         DS18B20msg[msgLen - 2] = 10;
         DS18B20msg[msgLen - 1] = 0;
 
-        uartIO_buffSend(&DS18B20msg[0], msgLen);
+        uartIO_buffSend(&DS18B20msg[0], msgLen-1);
         printf("%08X %*.*s Msg %1X %07.1f s Err %d Last %d\n", 
                tStamp, msgLen - 3, msgLen - 3, (uint8_t *)&DS18B20msg[0],
                msgId, msgDlta, DS18B20_errCnt, DS18B20_lastErr);

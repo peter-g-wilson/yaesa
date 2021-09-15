@@ -215,7 +215,7 @@ int WH1080_doMsgBuf( void ) {
     outArgs_t outArgs;
     uint sndrIdx = decode_WH1080_msg( &WH1080msgQ, WH1080msgcods, &outArgs );
     freeLastMsg( &WH1080msgQ );
-    uartIO_buffSend(&WH1080msgcods[0],outArgs.oArgMsgLen);
+    uartIO_buffSend(&WH1080msgcods[0],outArgs.oArgMsgLen-1);
     opfrmt_print_args( WH1080msgcods, &outArgs );
     return sndrIdx;
 }

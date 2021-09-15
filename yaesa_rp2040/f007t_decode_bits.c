@@ -167,7 +167,7 @@ int F007T_doMsgBuf( void ) {
     outArgs_t outArgs;
     int sndrIdx = decode_F007T_msg( &F007TmsgQ, F007Tmsgcods, &outArgs );
     freeLastMsg( &F007TmsgQ );
-    uartIO_buffSend(&F007Tmsgcods[0],outArgs.oArgMsgLen);
+    uartIO_buffSend(&F007Tmsgcods[0],outArgs.oArgMsgLen -1);
     opfrmt_print_args( F007Tmsgcods, &outArgs );
     return sndrIdx;
 }

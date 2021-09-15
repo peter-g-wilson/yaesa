@@ -312,7 +312,7 @@ int BME280_read(uint32_t tStamp)
         BME280msg[msgLen-2] = 10;
         BME280msg[msgLen-1] = 0;
     
-        uartIO_buffSend(&BME280msg[0],msgLen);
+        uartIO_buffSend(&BME280msg[0],msgLen-1);
         printf("%08X %*.*s Msg %1X %07.1f s Err %d\n",
                tStamp,msgLen-3,msgLen-3,(uint8_t *)&BME280msg[0],
                msgId,msgDlta,BME280_errCnt);
