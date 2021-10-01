@@ -115,13 +115,23 @@ void msgChkPrevAndQue( bool chkPass, uint8_t sndrIdx, uint8_t chkSumRxd, volatil
         msgRecP->mRecSndrIdx = sndrIdx;
         msgRecP->mRecSndrId  = msgQ->mQueSndrId;
         if (msgQ->mQueHadPrv && (msgQ->mQueSndrId == msgQ->mQuePrevID) &&
-                               (msgQ->mQuePrvChkSum == chkSumRxd) ) {
+                                  (msgQ->mQuePrvChkSum == chkSumRxd) ) {
+            // Its possible to have consecutive valid identical checksums but invalid WH1080 messages
+            // For example, the following have valid checksums but aren't valid messages
+            // FFBFDDFFFFFFFFFFBFFFFF, FFBFDEFFFFFFFFF7FFFFFF, FFBFDEBFEFEFFFDDFFFFFF
+            // FFBFDDFFFFBFFBFEFFFFFF, FFBFDBFDFFFFFFFFEBFFFF, FFBFDFFFFFFBFFFFFFFFFB
+            // FFBFDFFFDFE7FFFFFFFDFF
+            // The probability of that but also with identical message content is less likely (though still possible!)
             prevSame = memcmp(&msgQ->mQuePrvMsgByts[0],(const void *)&msgP[0],len) == 0;
             if (!prevSame) {
-                // e.g. the following have valid checksums of FF but are invalid WH1080 messages 
-                // FFBFDEFFFFFFFFF7FFFFFF,FFBFDEBFEFEFFFDDFFFFFF,FFBFDDFFFFBFFBFEFFFFFF,FFBFDBFDFFFFFFFFEBFFFF
                 msgQ->mQuePrvChkSumInvld++;
-                if (msgQ->mQuePrvChkSum != 0xFF) printf("Not always 0xFF - chk %02X\n",msgQ->mQuePrvChkSum);
+                printf("Noisy: 0x%04x chksum OK and same as previous but message content is different\n",
+                                 msgRecP->mRecSndrId);
+                printf("Noisy: 0x%04x prev=",msgRecP->mRecSndrId);
+                for (uint i = 0; i < len; i++) printf("%02X", msgQ->mQuePrvMsgByts[i]);
+                printf("\nNoisy: 0x%04x crnt=",msgRecP->mRecSndrId);
+                for (uint i = 0; i < len; i++) printf("%02X", msgP[i]);
+                printf("\n");
             }
         }
         if (prevSame) {
