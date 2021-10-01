@@ -115,21 +115,46 @@ void msgChkPrevAndQue( bool chkPass, uint8_t sndrIdx, uint8_t chkSumRxd, volatil
         msgRecP->mRecSndrIdx = sndrIdx;
         msgRecP->mRecSndrId  = msgQ->mQueSndrId;
         if (msgQ->mQueHadPrv && (msgQ->mQueSndrId == msgQ->mQuePrevID) &&
-                               (msgQ->mQuePrvChkSum == chkSumRxd) ) {
+                                  (msgQ->mQuePrvChkSum == chkSumRxd) ) {
+            // Its possible to have consecutive valid identical checksums but invalid WH1080 messages
+            // For example, the following have valid checksums but aren't valid messages
+            // FFBFDDFFFFFFFFFFBFFFFF, FFBFDEFFFFFFFFF7FFFFFF, FFBFDEBFEFEFFFDDFFFFFF
+            // FFBFDDFFFFBFFBFEFFFFFF, FFBFDBFDFFFFFFFFEBFFFF, FFBFDFFFFFFBFFFFFFFFFB
+            // FFBFDFFFDFE7FFFFFFFDFF
+            // The probability of that but also with identical message content is less likely (though still possible!)
+            // Currently 0xFD0B is treated less strickly because those mesages seem to have disappeared.
+            // In mitigation the individual fields of a 0xFD0B message are able to get addional validation later.
             prevSame = memcmp(&msgQ->mQuePrvMsgByts[0],(const void *)&msgP[0],len) == 0;
             if (!prevSame) {
-                // e.g. the following have valid checksums of FF but are invalid WH1080 messages 
-                // FFBFDEFFFFFFFFF7FFFFFF,FFBFDEBFEFEFFFDDFFFFFF,FFBFDDFFFFBFFBFEFFFFFF,FFBFDBFDFFFFFFFFEBFFFF
                 msgQ->mQuePrvChkSumInvld++;
-                if (msgQ->mQuePrvChkSum != 0xFF) printf("Not always 0xFF - chk %02X\n",msgQ->mQuePrvChkSum);
+                printf("Noisy: 0x%04x chksum OK and same as previous but message content is different\n",
+                                 msgRecP->mRecSndrId);
+                if (msgRecP->mRecSndrId != 0xFD0B) { // 0xFD0B will currently be treated like prevSame==true later
+                    printf("Noisy: 0x%04x prev=",msgRecP->mRecSndrId);
+                    for (uint i = 0; i < len; i++) printf("%02X", msgQ->mQuePrvMsgByts[i]);
+                    printf("\nNoisy: 0x%04x crnt=",msgRecP->mRecSndrId);
+                    for (uint i = 0; i < len; i++) printf("%02X", msgP[i]);
+                    printf("\n");
+                }
             }
         }
-        if (prevSame) {
+        if (prevSame || (msgRecP->mRecSndrId == 0xFD0B)) { // treating 0xFD0B currently sort of like prevSame==true
             doPutNxtMsg = true;
             msgRecP->mRecMsgVrfdDltaTim = tNow - sndrP[sndrIdx].sndrTimeStamp;
             sndrP[sndrIdx].sndrTimeStamp= tNow;
-            sndrP[sndrIdx].sndrVrfyCnt++;
-            msgQ->mQueHadPrv = false;
+            if (prevSame) {
+                sndrP[sndrIdx].sndrVrfyCnt++;
+                if (msgRecP->mRecSndrId == 0xFD0B) { // get every 0xFD0B message not just the 2nd of two
+                    msgQ->mQueHadPrv = true;
+                    memcpy(&msgQ->mQuePrvMsgByts[0],(const void *)&msgP[0],len);
+                } else {
+                    msgQ->mQueHadPrv = false;
+                }
+            } else { // 0xFD0B will be processed but wasn't verified as 2nd of two
+                sndrP[sndrIdx].sndrUnVrfyCnt++;
+                msgQ->mQueHadPrv = true;
+                memcpy(&msgQ->mQuePrvMsgByts[0],(const void *)&msgP[0],len);
+            }
         } else {
             sndrP[sndrIdx].sndrUnVrfyCnt++;
             msgQ->mQueHadPrv = true;

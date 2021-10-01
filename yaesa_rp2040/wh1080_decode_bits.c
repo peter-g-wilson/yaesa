@@ -140,9 +140,7 @@ int decode_WH1080_msg( volatile msgQue_t * msgQ, outBuff_t outBuff, outArgs_t * 
     uint msgId = msgRecP->mRecSndrId;
     bool validVals = false;
     uint sndrIdx;
-
-    int msgLen = opfrmt_snprintf_header( outBuff, msgId, msgRecP->mRecMsgTimeStamp, msgP,
-                                         WH1080_MAXMSGBYTS, WH1080_PREDASHPAD );
+    int  msgLen;
     if  (msgId == 0xFD0B) {
         uint8_t *sTyp = ((msgP[2] & 0x0F) == 10) ? "DCF77" : "?????"; // 5 
         uint     tHrs = ((msgP[3] & 0x30) >> 4)*10 + (msgP[3] & 0x0F);
@@ -155,6 +153,8 @@ int decode_WH1080_msg( volatile msgQue_t * msgQ, outBuff_t outBuff, outArgs_t * 
                          (tHrs > 23) || (tMin > 59) || (tSec > 59) ); 
         if (validVals) {
             sndrIdx = 0x0B;
+            msgLen = opfrmt_snprintf_header( outBuff, msgId, msgRecP->mRecMsgTimeStamp, msgP,
+                                             WH1080_MAXMSGBYTS, WH1080_PREDASHPAD );
             msgLen += snprintf(&outBuff[msgLen], OFRMT_TOTAL_LEN - msgLen - WH1080_FD0B_POSTDASHPAD + 1,
                                "i:%1X,s:%5.5s,%04d-%02d-%02d,%02d:%02d:%02d",
                                sndrIdx, sTyp, tYrs, tMth, tDay, tHrs, tMin, tSec );
@@ -182,13 +182,19 @@ int decode_WH1080_msg( volatile msgQue_t * msgQ, outBuff_t outBuff, outArgs_t * 
         if (wndGst_mps > 99.9F) wndGst_mps =   99.9F;
         validVals = true;
         sndrIdx = 0x0A;
+        msgLen = opfrmt_snprintf_header( outBuff, msgId, msgRecP->mRecMsgTimeStamp, msgP,
+                                         WH1080_MAXMSGBYTS, WH1080_PREDASHPAD );
         msgLen += snprintf(&outBuff[msgLen], OFRMT_TOTAL_LEN - msgLen - WH1080_FD0A_POSTDASHPAD + 1,
                            "i:%1X,b:%1d,t:%05.1f,h:%03d,r:%06.1f,a:%04.1f,g:%04.1f,c:%02d",
                         sndrIdx, battSts, tempDegC, humid, rain_mm, wndAvg_mps, wndGst_mps, wndDir);
         msgLen += opfrmt_snprintf_dashpad( outBuff, msgLen, WH1080_FD0A_POSTDASHPAD );
     }
     if (!validVals) {
+        msgQ->mQuePrvChkSumInvld++;
         sndrIdx = 0x0C;
+        msgId   = (msgRecP->mRecSndrId & 0xFF00) | sndrIdx;
+        msgLen = opfrmt_snprintf_header( outBuff, msgId, msgRecP->mRecMsgTimeStamp, msgP,
+                                         WH1080_MAXMSGBYTS, WH1080_PREDASHPAD );
         msgLen += snprintf(&outBuff[msgLen], OFRMT_TOTAL_LEN - msgLen - WH1080_UNKWN_POSTDASHPAD + 1,
                                              "?");
         msgLen += opfrmt_snprintf_dashpad( outBuff, msgLen, WH1080_UNKWN_POSTDASHPAD );
