@@ -4,6 +4,12 @@
 Remote wireless temperature sensors and remote wireless weather station with temperature/humidity/rain/wind sensors.<br>
 Local sensor with temperature/humidity/pressure and another local'ish sensor with a temperature sensor at the end of a long wire.
 
+**Updates 2022/03/01 -**
+<br>
+- Currently, at initialisation, the bme680's chip id is checked and the sampling rates and run mode are initialised.
+- The chip id is also checked before every sensor read.
+- Added a check that the sampling rates and run mode are as expected before every read.
+
 **Updates 2021/09/09 -**
 <br>
 - for WH1080 and F007T messages, if both queues have messages available to send, choose the oldest first by comparing the timestamps from when the messages were originally queued
