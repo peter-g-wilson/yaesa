@@ -175,9 +175,10 @@ static void read_registers(uint8_t reg, uint8_t *buf, uint16_t len) {
 /* This function reads the manufacturing assigned compensation parameters from the device */
 void read_compensation_parameters() {
     uint8_t buffer[26];
-
     read_registers(0x88, buffer, 24);
-
+    printf("0x88 = ");
+    for (uint i= 0; i < 24; i++) { printf( "%02X", buffer[i] ); }
+    printf(", ");
     dig_T1 = buffer[0] | (buffer[1] << 8);
     dig_T2 = buffer[2] | (buffer[3] << 8);
     dig_T3 = buffer[4] | (buffer[5] << 8);
@@ -195,6 +196,9 @@ void read_compensation_parameters() {
     dig_H1 = buffer[25];
 
     read_registers(0xE1, buffer, 8);
+    printf("0xE1 = ");
+    for (uint i= 0; i < 8; i++) { printf( "%02X", buffer[i] ); }
+    printf("\n");
 
     dig_H2 = buffer[0] | (buffer[1] << 8);
     dig_H3 = (int8_t) buffer[2];
@@ -210,19 +214,41 @@ bool BME280_checkId( void )
     static bool checkedOk = false;
     // See if SPI is working - interrograte the device for its I2C ID number, should be 0x60
     uint8_t id;
+    uint8_t ctrl[3];
+    uint8_t ctrl_F2 = 0;
+    uint8_t ctrl_F4 = 0;    
     read_registers(0xD0, &id, 1);
+    bool prevCheckedOk = checkedOk;
     if (id != 0x60) {
         checkedOk = false;
-        BME280_errCnt++;
-        printf("Chip ID error, got 0x%02x\n", id);
     } else {
-        if (!checkedOk) {
-            checkedOk = true;
+        read_registers(0xF2, &ctrl[0], 3);
+        ctrl_F2 = ctrl[0];
+        ctrl_F4 = ctrl[2];    
+        checkedOk = ((ctrl_F2 == 0x1) && (ctrl_F4 == 0x27));
+        if (!prevCheckedOk || !checkedOk) {
+
+            write_register(0xE2, 0xB6); // reset
 
             read_compensation_parameters();
     
             write_register(0xF2, 0x1); // Humidity oversampling register - going for x1
             write_register(0xF4, 0x27);// Set rest of oversampling modes and run mode to normal
+
+            read_registers(0xD0, &id, 1);
+            read_registers(0xF2, &ctrl[0], 3);
+            ctrl_F2 = ctrl[0];
+            ctrl_F4 = ctrl[2];    
+
+            checkedOk = ((id == 0x60) && (ctrl_F2 == 0x1) && (ctrl_F4 == 0x27));
+        }
+    }
+    if (prevCheckedOk != checkedOk) {
+        if (!prevCheckedOk && checkedOk) {
+            printf("Chip OK\n");
+        } else if (prevCheckedOk && !checkedOk) {
+            BME280_errCnt++;
+            printf("Chip error, got ID=0x%02x, F2=0x%02x, F2=0x%02x\n", id, ctrl_F2, ctrl_F4);
         }
     }
     return checkedOk;
