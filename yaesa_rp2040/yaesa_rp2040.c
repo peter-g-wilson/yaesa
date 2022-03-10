@@ -16,9 +16,9 @@
 #include "ds18b20_1w.h"
 #include "led_control.h"
 #include "sched_ms.h"
+#include "f007t_tx_relay.h"
 
-enum ledctl_colours_t sndrToColour( int sndr )
-{
+enum ledctl_colours_t sndrToColour(int sndr) {
     typedef struct sndrColrEle_struct {
         uint8_t s;
         enum ledctl_colours_t  c;
@@ -30,6 +30,8 @@ enum ledctl_colours_t sndrToColour( int sndr )
         {  0x2, ledctl_colCyan        }, // F007
         {  0x3, ledctl_colYellow      }, // F007
         {  0x4, ledctl_colMagenta     }, // F007
+        {  0x5, ledctl_colBlueBright  }, // F007 TX relay WH1080 temp, humidity, wind, rain
+        {  0x6, ledctl_colRedBright   }, // F007 TX relay DS18B20 temp
         {  0xA, ledctl_colBlueBright  }, // WH1080 temp, humidity, wind, rain
         {  0xB, ledctl_colBlueDim     }, // WH1080 date/time
         {  0xE, ledctl_colRedBright   }, // DS18B20 temp
@@ -67,6 +69,8 @@ int procSerialRx( uint8_t id, uint8_t * ipBuff, int ipLen ) {
     return rdyNxt;
 }
 
+bool core1_init_done = false;
+
 void core1_entry() {
 
     puts("Hello, other world!");
@@ -79,7 +83,9 @@ void core1_entry() {
 
     BME280_init();
     DS18B20_init();
+    F007T_tx_relay_init();
     sched_init_core();
+    core1_init_done = true;
 
 #define PACING_DELAY_MS    1000
 #define BME280_PERIOD_MS  60000
@@ -167,15 +173,21 @@ int main() {
 
     ledctl_init();
 
-    ledctl_put( ledctl_colGreen );
+    ledctl_put( ledctl_colWhiteBright );
     puts("Hello, world!");
 
     WH1080_init( 200, 100 );
     F007T_init(  100,  50 );
     sched_init_core();
 
-    ledctl_put( ledctl_colAllOff );
     multicore_launch_core1(core1_entry);
+
+    while (!core1_init_done)
+        tight_loop_contents();
+
+    WH1080_enable();
+    F007T_enable();
+    ledctl_put( ledctl_colAllOff );
 
     while (1)
         tight_loop_contents();

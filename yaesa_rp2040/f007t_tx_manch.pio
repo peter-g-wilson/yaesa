@@ -1,0 +1,40 @@
+
+.program F007T_tx
+
+; Data bit rate is 1024 Hz => 976.5625us data bit period.
+; Choosing 12 sm clock ticks per data bit then the min manchester pulse is 6 ticks.
+; Assuming 125 mHz system clock the dividor calculation is
+; 1/(1024*12) = 1/(125MHz/dividor) giving
+; dividor = 125MHz/(1024*12) = 10172.5260416...67
+; An int 10172 and frac 135 gives a dividor closest to 10172.5260416...67
+; i.e. one sm data bit cycle is 976.562625us 
+; The line is required to idle low, a data bit '1' is 1->0 and '0' is 0->1.
+; One message, including enough preamble, can fit exactly into 8 bytes (2*32 bits).
+; The message must be repeated 3 times, so 3*2*32 bits.
+; In addition an initial fifo push provides the count for the number bits to send (-1).
+; One transmission with its repeats and bit count will fit 7 * 32 bit fifo words.
+; Fifo's are joined so there are 8 * 32 bit fifos available.
+; One transmission can therefore be started without a fifo push blocking.
+; The complete transmission takes about 188ms. If a second transmission
+; is started within that time then it will block on a fifo push.
+
+.side_set 1 opt
+
+public start_block:
+    pull block side 0;
+    out y, 32;
+    jmp get_bit;
+.wrap_target
+do_1:
+    nop side 1 [5];
+    jmp dec_bit_cnt side 0 [2];
+do_0:
+    nop side 0 [5];
+    nop side 1 [2];
+dec_bit_cnt:
+    jmp y-- get_bit;
+    jmp start_block;
+get_bit:    
+    out x, 1;
+    jmp !x do_0;
+.wrap

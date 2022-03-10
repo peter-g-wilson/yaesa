@@ -65,6 +65,7 @@ endif()
 pico_generate_pio_header(yaesa_rp2040 ${CMAKE_CURRENT_LIST_DIR}/f007t_manchwithdelay.pio)
 pico_generate_pio_header(yaesa_rp2040 ${CMAKE_CURRENT_LIST_DIR}/wh1080_pwmpulsebits.pio)
 pico_generate_pio_header(yaesa_rp2040 ${CMAKE_CURRENT_LIST_DIR}/ds18b20_1w.pio)
+pico_generate_pio_header(yaesa_rp2040 ${CMAKE_CURRENT_LIST_DIR}/f007t_tx_manch.pio)
 
 add_custom_command(TARGET yaesa_rp2040 POST_BUILD
     COMMAND ${CMAKE_OBJDUMP} -h yaesa_rp2040${CMAKE_EXECUTABLE_SUFFIX} >yaesa_rp2040.dis.src
@@ -83,6 +84,7 @@ target_sources(yaesa_rp2040 PRIVATE
         ds18b20_1w.c
         led_control.c
         sched_ms.c
+        f007t_tx_relay.c
         )
 
 target_compile_definitions(yaesa_rp2040 PRIVATE PICO_DEFAULT_UART=0)
