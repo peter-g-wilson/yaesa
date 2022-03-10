@@ -13,6 +13,7 @@
 #include "string.h"
 #include "proj_board.h"
 #include "sched_ms.h"
+#include "f007t_tx_relay.h"
 
 /*-----------------------------------------------------------------*/
 #define MAX_WH1080_BUFWRDS 32
@@ -182,6 +183,7 @@ int decode_WH1080_msg( volatile msgQue_t * msgQ, outBuff_t outBuff, outArgs_t * 
         if (wndGst_mps > 99.9F) wndGst_mps =   99.9F;
         validVals = true;
         sndrIdx = 0x0A;
+        F007T_tx_relay(F007T_TX_RFID_WH1080, tempDegC, battSts);
         msgLen += snprintf(&outBuff[msgLen], OFRMT_TOTAL_LEN - msgLen - WH1080_FD0A_POSTDASHPAD + 1,
                            "i:%1X,b:%1d,t:%05.1f,h:%03d,r:%06.1f,a:%04.1f,g:%04.1f,c:%02d",
                         sndrIdx, battSts, tempDegC, humid, rain_mm, wndAvg_mps, wndGst_mps, wndDir);
@@ -239,7 +241,6 @@ void WH1080_init( uint32_t parseRptTime, uint32_t fifoRptTime ) {
 
     pio_sm_init(        bitQ->bQue_pio_id, bitQ->bQue_sm_id, offset_prog, &cfg_prog );
     pio_sm_clear_fifos( bitQ->bQue_pio_id, bitQ->bQue_sm_id);
-    pio_sm_set_enabled( bitQ->bQue_pio_id, bitQ->bQue_sm_id, true);
 
     msgQ->mQueQLock = spin_lock_instance( next_striped_spin_lock_num() );
     
@@ -247,6 +248,12 @@ void WH1080_init( uint32_t parseRptTime, uint32_t fifoRptTime ) {
     sched_init_slot(SCHED_CORE0_SLOT1,fifoRptTime,  poll_FIFO_callback,       (void *)&WH1080bitQ);
 
     bi_decl(bi_1pin_with_name(WH1080_GPIO_RX, WH1080_CONFIG));
+}
+void WH1080_enable(void)
+{
+    volatile msgQue_t * msgQ = &WH1080msgQ;
+    volatile bitQue_t * bitQ = msgQ->mQueBitQueP;
+    pio_sm_set_enabled(bitQ->bQue_pio_id, bitQ->bQue_sm_id, true);
 }
 void WH1080_uninit( void ) {
     volatile msgQue_t * msgQ = &WH1080msgQ;

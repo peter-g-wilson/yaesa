@@ -14,6 +14,7 @@
 #include "string.h"
 #include "proj_board.h"
 #include "sched_ms.h"
+#include "f007t_tx_relay.h"
 
 #define MAX_F007T_BUFWRDS 32
 volatile uint32_t F007TrxWrdsBuf[MAX_F007T_BUFWRDS];
@@ -27,10 +28,8 @@ volatile bitQue_t F007TbitQ = {
 };  
 
 #define MAX_F007T_SENDERS   8
-#define MAX_F007T_KNWNSNDRIDX 4
 sender_t F007Tsenders[MAX_F007T_SENDERS];
 
-#define F007T_MAXMSGBYTS  6
 #define MAX_F007T_BUFMSGS 16
 
 uint8_t  msgPrvF007T[F007T_MAXMSGBYTS];
@@ -49,15 +48,16 @@ volatile msgQue_t F007TmsgQ = {
     .mQuePrvMsgByts= &msgPrvF007T[0],
 };
 
+const uint8_t F007TlsfrMask[(F007T_MAXMSGBYTS-1)*8] = {
+    0x3e, 0x1f, 0x97, 0xd3, 0xf1, 0xe0, 0x70, 0x38,
+    0x1c, 0x0e, 0x07, 0x9b, 0xd5, 0xf2, 0x79, 0xa4,  
+    0x52, 0x29, 0x8c, 0x46, 0x23, 0x89, 0xdc, 0x6e,
+    0x37, 0x83, 0xd9, 0xf4, 0x7a, 0x3d, 0x86, 0x43,  
+    0xb9, 0xc4, 0x62, 0x31, 0x80, 0x40, 0x20, 0x10
+};
+
 /*-----------------------------------------------------------------*/
 void parseF007Tbits_callback(void * msgQp) {
-    const uint8_t lsfrMask[(F007T_MAXMSGBYTS-1)*8] = {
-        0x3e, 0x1f, 0x97, 0xd3, 0xf1, 0xe0, 0x70, 0x38,
-        0x1c, 0x0e, 0x07, 0x9b, 0xd5, 0xf2, 0x79, 0xa4,  
-        0x52, 0x29, 0x8c, 0x46, 0x23, 0x89, 0xdc, 0x6e,
-        0x37, 0x83, 0xd9, 0xf4, 0x7a, 0x3d, 0x86, 0x43,  
-        0xb9, 0xc4, 0x62, 0x31, 0x80, 0x40, 0x20, 0x10
-    };
 #define F007T_HDR_MASK      ((uint32_t)0x000FFFFF)
 #define F007T_HDR_46        ((uint32_t)0x00000046)
 #define F007T_HDR_MATCH46  (((uint32_t)0x000FFD00) | F007T_HDR_46)
@@ -84,7 +84,7 @@ void parseF007Tbits_callback(void * msgQp) {
                 msgP[0]  = (uint8_t)(header & 0x000000FF);
                 chkSumCalc = 100;
                 for (uint8_t i = 0, m = 0x80; i < 8; i++, m >>= 1)
-                    if (msgP[0] & m) chkSumCalc ^= lsfrMask[i];
+                    if (msgP[0] & m) chkSumCalc ^= F007TlsfrMask[i];
                 bytCnt     = 1;
                 bitCnt     = 0;
                 header     = 0;
@@ -95,7 +95,7 @@ void parseF007Tbits_callback(void * msgQp) {
             if (nxtBitIsSet) {
                 msgP[bytCnt] |= 1;
                 if (bytCnt < (F007T_MAXMSGBYTS-1)) {
-                    chkSumCalc ^= lsfrMask[bytCnt*8+bitCnt];
+                    chkSumCalc ^= F007TlsfrMask[bytCnt*8+bitCnt];
                 }
             }
             bitCnt++;
@@ -167,7 +167,9 @@ int F007T_doMsgBuf( void ) {
     outArgs_t outArgs;
     int sndrIdx = decode_F007T_msg( &F007TmsgQ, F007Tmsgcods, &outArgs );
     freeLastMsg( &F007TmsgQ );
-    uartIO_buffSend(&F007Tmsgcods[0],outArgs.oArgMsgLen -1);
+    if (sndrIdx <= MAX_F007T_KNWNSNDRIDX) {
+        uartIO_buffSend(&F007Tmsgcods[0],outArgs.oArgMsgLen -1);
+    }
     opfrmt_print_args( F007Tmsgcods, &outArgs );
     return sndrIdx;
 }
@@ -193,13 +195,17 @@ void F007T_init( uint32_t parseRptTime, uint32_t fifoRptTime ) {
     pio_sm_init(        bitQ->bQue_pio_id, bitQ->bQue_sm_id, offset_prog, &cfg_prog );
     pio_sm_clear_fifos( bitQ->bQue_pio_id, bitQ->bQue_sm_id);
     pio_sm_exec(        bitQ->bQue_pio_id, bitQ->bQue_sm_id, pio_encode_set(pio_x, 1));
-    pio_sm_set_enabled( bitQ->bQue_pio_id, bitQ->bQue_sm_id, true);
 
     msgQ->mQueQLock = spin_lock_instance( next_striped_spin_lock_num() );
     
     sched_init_slot(SCHED_CORE0_SLOT2, parseRptTime, parseF007Tbits_callback, (void *)&F007TmsgQ);
     sched_init_slot(SCHED_CORE0_SLOT0, fifoRptTime , poll_FIFO_callback,      (void *)&F007TbitQ);
     bi_decl(bi_1pin_with_name(F007T_GPIO_RX, F007T_CONFIG));
+}
+void F007T_enable( void ) {
+    volatile msgQue_t * msgQ = &F007TmsgQ;
+    volatile bitQue_t * bitQ = msgQ->mQueBitQueP;
+    pio_sm_set_enabled( bitQ->bQue_pio_id, bitQ->bQue_sm_id, true);
 }
 void F007T_uninit( void ) {
     volatile msgQue_t * msgQ = &F007TmsgQ;

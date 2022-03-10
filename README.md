@@ -33,7 +33,7 @@ The linker script customisation is placed in the build directory so the hard cod
 
 **Updates 2021/08/27 -**
 <br>
-- replaced repeating_timer calls with simple'ish 1 ms tick scheduler (_**sched.c**_ and _**h**_) that triggers callbacks running on each core
+- replaced repeating_timer calls with simple'ish 1 ms tick scheduler (_**sched_ms.c**_ and _**h**_) that triggers callbacks running on each core
 - the Tiny2040 board has 8 MB flash but by default the linker allocates only 2 MB. As an experiment, if environment variable PICO_BOARD is set for the tiny2040, then a custom linker script is added to set it to 8. I'm not sure if this is the correct way but in any case the current total code size including SDK is less than 50 KB so perhaps even 2 MB is generous. I guess the larger flash sizes better suit applications that create a file system e.g. python environment
 
 **Updates 2021/08/22 -**
@@ -123,7 +123,7 @@ The WH1080 PWM OOK with 10 byte message and 8 bit CRC appears to be particularly
   - it is assumed that there is only one device on the bus (because that's all there currently is!). 
 * _**bme280_spi.c**_
   - reads the BME280 over SPI. Apart from an awful cludge, the code is largely the published example SPI program unmodified
-  - unlike the DS18B20, the BME280 provides no checksum for messages. The 'id' register is read as a minimum sanity check before the sensor data is read. If it's valid and this is the first time or was previously not valid then the calibration data is read and the oversampling rate and run mode set.
+  - unlike the DS18B20, the BME280 provides no checksum for messages. The 'id' register and the oversampling rate and run mode configuration are verifyied before the sensor data is read. 
 * _**queues_for_msgs_and_bits.c**_
   - has support routines for message and bit queues. Statistics are collected to measure the performance of the queues and FIFOs and the incoming rate of data bits. 
 * _**serial_io.c**_
@@ -136,7 +136,7 @@ The WH1080 PWM OOK with 10 byte message and 8 bit CRC appears to be particularly
     - allow currently coded settings table to be cycled through easily.
 * _**sched_ms.c**_
   - provides a simple scheduler using a 1 ms tick
-  - uses ALARMs and IRQs 0 and 1 - the default alram pool on 3 still exists and used by stdio over USB
+  - uses ALARMs and IRQs 0 and 1 - the default alarm pool on 3 still exists and used by stdio over USB
   - the 1 ms tick callback performance is monitored for overrun, max duration, tardiness, and max durations of the scheduled callbacks that it triggers 
 * _**output_format.c**_
   - defines common format information and prints debug and statistics to std output
