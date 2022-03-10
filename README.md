@@ -4,6 +4,14 @@
 Remote wireless temperature sensors and remote wireless weather station with temperature/humidity/rain/wind sensors.<br>
 Local sensor with temperature/humidity/pressure and another local'ish sensor with a temperature sensor at the end of a long wire.
 
+**Updates 2022/03/10 -**
+<br>
+- The base station that came supplied with the F007T sensors can display up to 8 remote sensors and there are currently only 5.
+- Added a 433Mhz OOK transmiter to relay the 868MHz WH1080 and the one-wire DS18B20 temperatures and transmit as imitation F007T messages on the 433MHz band.
+- These additional 2 readings are seen by the supplied base station as the 6th and 7th.
+- The manchester encoding is implemented using PIO.
+- The 433MHz OOK receiver 2 cm away from the transmitter simultaneously receives its own transmitted messages too but ignores them.
+
 **Updates 2022/03/01 -**
 <br>
 - Currently, at initialisation, the bme680's chip id is checked and the sampling rates and run mode are initialised.
@@ -121,9 +129,16 @@ The WH1080 PWM OOK with 10 byte message and 8 bit CRC appears to be particularly
   - CPU code detemines that the PIO's state machine is idle by checking the PIO's TX FIFO stalled status.
   - default 12 bit conversion is used and, if the device had reported no power, then the data line is driven high to provide some "parasitic" power during the conversion time (pin drive strength at default) 
   - it is assumed that there is only one device on the bus (because that's all there currently is!). 
+* _**f007t_tx_manch.pio**_ in 11 instructions
+  - the TX FIFO is joined providing 8 * 32 bit words. The first 32 bit PUSH provides the count of the number of bits to transmit and the remaining 32 bit PUSHs provide the data bits that the manchester encoding is to be applied to 
+  - the state machine's first blocking PULL gets the 32 bit count and subsequent PULLs get the data one bit at a time until the count is zero
+* _**f007t_tx_relay.c**_
+  - provides the function that the WH1080 receiver and DH18B20 reader call when they have new data
+  - the F007T's id and temperature are passsed to the function which creates a F007T format message, PUSHs the count of bits to the PIO TX FIFO and then PUSHs the data 32 bits at a time
+  - provided there is approximately 190ms between calls to the function the CPU code won't be blocked waiting during the transmission
 * _**bme280_spi.c**_
   - reads the BME280 over SPI. Apart from an awful cludge, the code is largely the published example SPI program unmodified
-  - unlike the DS18B20, the BME280 provides no checksum for messages. The 'id' register and the oversampling rate and run mode configuration are verifyied before the sensor data is read. 
+  - unlike the DS18B20, the BME280 provides no checksum for messages. The 'id' register and the oversampling rate and run mode configuration are verified before the sensor data is read. 
 * _**queues_for_msgs_and_bits.c**_
   - has support routines for message and bit queues. Statistics are collected to measure the performance of the queues and FIFOs and the incoming rate of data bits. 
 * _**serial_io.c**_
