@@ -134,7 +134,7 @@ The WH1080 PWM OOK with 10 byte message and 8 bit CRC appears to be particularly
   - the state machine's first blocking PULL gets the 32 bit count and subsequent PULLs get the data one bit at a time until the count is zero
 * _**f007t_tx_relay.c**_
   - provides the function that the WH1080 receiver and DH18B20 reader call when they have new data
-  - the F007T's id and temerature are passsed to the function which creates a F007T format message, PUSHs the count of bits to the PIO TX FIFO and then PUSHs the data 32 bits at a time
+  - the F007T's id and temperature are passsed to the function which creates a F007T format message, PUSHs the count of bits to the PIO TX FIFO and then PUSHs the data 32 bits at a time
   - provided there is approximately 190ms between calls to the function the CPU code won't be blocked waiting during the transmission
 * _**bme280_spi.c**_
   - reads the BME280 over SPI. Apart from an awful cludge, the code is largely the published example SPI program unmodified
