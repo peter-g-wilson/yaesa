@@ -37,11 +37,13 @@
 #define LED_DEFAULT_ON  (1 ^ PICO_DEFAULT_LED_PIN_INVERTED)
 #define LED_DEFAULT_OFF (0 ^ PICO_DEFAULT_LED_PIN_INVERTED)
 
+// 9 instructions
 #define F007T_PIO_HW  pio0
 #define F007T_SM_HW   2
 #define F007T_CONFIG  "PIO0_SM2 F007T_RF_IP"
 #define F007T_GPIO_RX 26
 
+// 16 instructions
 #define WH1080_PIO_HW  pio0
 #define WH1080_SM_HW   1
 #define WH1080_CONFIG  "PIO0_SM1 WH1080_RF_IP"
@@ -57,10 +59,17 @@
 #define UART_TX_PIN 4
 #define UART_RX_PIN 5
 
+// 15 instructions
 #define DS18B20_PIO_HW pio1
 #define DS18B20_SM_1W  1
 #define DS18B20_CONFIG "PIO1_SM1 ONE-WIRE"
 #define DS18B20_PIN    6
+
+// 11 instructions
+#define F007T_TX_PIO_HW pio1
+#define F007T_TX_SM_OP  2
+#define F007T_TX_CONFIG "PIO1_SM1 F007T_TX_OP"
+#define F007T_TX_PIN    7
 
 #define PROJ_BOARD_H
 #endif

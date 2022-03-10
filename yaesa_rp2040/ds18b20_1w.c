@@ -12,6 +12,7 @@
 #include "proj_board.h"
 #include "ds18b20_1w.h"
 #include "ds18b20_1w.pio.h"
+#include "f007t_tx_relay.h"
 
 #define PULL_TXFIFO_STALLED ((uint32_t)(1u << (PIO_FDEBUG_TXSTALL_LSB + DS18B20_SM_1W)))
 
@@ -211,6 +212,7 @@ int DS18B20_read(uint32_t tStamp)
         float temp_degC = temperature * 0.0625F;
         if (temp_degC < -99.0F) temp_degC = -99.0F;
         if (temp_degC > 999.0F) temp_degC = 999.0F;
+        F007T_tx_relay( F007T_TX_RFID_DS18B20, temp_degC, false);
 
         int msgLen = opfrmt_snprintf_header( DS18B20msg, msgId, tStamp, rx_buff,
                                              DS18B20_MAXMSGBYTS, DS18B20_PREDASHPAD );
